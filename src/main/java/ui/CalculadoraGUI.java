@@ -1,8 +1,8 @@
 package ui;
 
 import controller.Controlador;
+import controller.ResultadoCalculo;
 import model.Equipamento;
-import model.ResultadoCalculo;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

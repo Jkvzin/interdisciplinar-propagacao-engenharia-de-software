@@ -20,6 +20,41 @@ Ptx - S = α × d + 10·log₂(N) + Pcon + M
 | Pcon    | Perda por conectores/fusoes   | dB      | ~0.5 por conector            |
 | M       | Margem de seguranca           | dB      | 3 (recomendado)              |
 
+## Como Usar (MUITO FACIL!)
+
+### No Windows
+**So dar 2 cliques no arquivo `rodar.bat`**
+
+Pronto. A calculadora abre sozinha. Nao precisa instalar nada alem do Java.
+
+### No Linux / Mac
+Abra o terminal na pasta do projeto e digite:
+
+```bash
+./rodar.sh
+```
+
+### Se nao abrir
+Provavelmente falta o Java. Instale em: https://adoptium.net/
+(So clicar no botao azul de download e instalar como qualquer programa)
+
+---
+
+## Como funciona
+
+1. Preencha os campos com os valores que voce conhece
+2. Deixe **UM** campo em branco — e o que voce quer descobrir
+3. Clique em **Calcular**
+4. O resultado aparece no quadro verde
+5. Se tiver algo fora do padrao, aparece um alerta
+
+**Exemplo:** Se voce sabe a potencia (+3 dBm), a sensibilidade (-28 dBm), 
+a distancia (10 km), o splitter (1:32) e os conectores (1.5 dB), 
+mas quer saber a **margem de seguranca** — deixe o campo "Margem" em branco 
+e clique em Calcular. Resultado: ~3 dB.
+
+---
+
 ## Estrutura do Projeto
 
 ```
