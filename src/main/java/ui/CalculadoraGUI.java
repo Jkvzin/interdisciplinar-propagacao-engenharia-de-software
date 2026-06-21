@@ -86,6 +86,9 @@ public class CalculadoraGUI extends JFrame {
         btnCalcular.setBackground(new Color(70, 130, 180));
         btnCalcular.setForeground(Color.WHITE);
         btnCalcular.setFocusPainted(false);
+        btnCalcular.setBorderPainted(false);
+        btnCalcular.setOpaque(true);
+        btnCalcular.setContentAreaFilled(true);
         btnCalcular.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCalcular.addActionListener(e -> onCalcular());
 
@@ -438,11 +441,20 @@ public class CalculadoraGUI extends JFrame {
      * Ponto de entrada para testes independentes da GUI.
      */
     public static void main(String[] args) {
-        // Define look and feel do sistema
+        // Tenta Nimbus (lida bem com cores customizadas), fallback para Metal
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
         } catch (Exception e) {
-            // Fallback para o LookAndFeel padrao do Java
+            try {
+                UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+            } catch (Exception ex) {
+                // nada a fazer
+            }
         }
 
         CalculadoraGUI gui = new CalculadoraGUI();
