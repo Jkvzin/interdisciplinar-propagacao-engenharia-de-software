@@ -1,0 +1,50 @@
+@startuml
+' ============================================
+' Diagrama de Caso de Uso
+' Calculadora de Link Budget GPON
+' ============================================
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Engenheiro / Usuario" as Eng
+
+rectangle "Calculadora de Link Budget GPON" {
+  
+  usecase "Inserir Parametros" as UC1
+  usecase "Calcular Variavel\nFaltante" as UC2
+  usecase "Visualizar Alertas\nde Validacao" as UC3
+  
+  note right of UC1
+    Campos: Potencia Tx,
+    Sensibilidade, Distancia,
+    Splitter, Conectores,
+    Margem de Seguranca
+  end note
+  
+  note right of UC2
+    Sistema identifica o
+    campo vazio e isola
+    a variavel algebricamente
+  end note
+  
+  note right of UC3
+    Validacao contra
+    ITU-T G.984 e G.652.
+    Alertas com codigo de cores
+    (verde / laranja / vermelho)
+  end note
+  
+}
+
+Eng --> UC1
+Eng --> UC2
+Eng --> UC3
+
+UC2 ..> UC1 : <<include>>
+' Calcular variavel faltante inclui a insercao de parametros
+UC3 ..> UC2 : <<extend>>
+' Validacao estende o calculo (acionado apos calcular)
+
+@enduml
