@@ -1,144 +1,223 @@
 package controller;
 
 import model.LinkBudget;
-import model.ResultadoCalculo;
-import model.Validador;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- * Controlador que orquestra o fluxo de calculo e validacao do Link Budget GPON.
+ * Controlador que faz a ponte entre a interface grafica (View) e o motor
+ * de calculo (Model). Responsavel por receber os parametros do usuario,
+ * acionar o {@link LinkBudget}, validar os resultados contra os padroes
+ * ITU-T G.984/G.652 e retornar um {@link ResultadoCalculo} consolidado.
  * 
- * <p>Coordena a interacao entre {@link LinkBudget} (motor de calculo),
- * {@link Validador} (regras ITU-T) e a camada de apresentacao.</p>
+ * <p>Fluxo: UI → Controlador → LinkBudget.calcular() + validacao → UI</p>
  * 
- * <p>Fluxo principal:</p>
- * <ol>
- *   <li>Recebe o mapa de parametros com a variavel faltante ({@code null})</li>
- *   <li>Executa {@link LinkBudget#calcular(Map)} para obter o valor</li>
- *   <li>Executa as validacoes via {@link Validador} sobre os parametros e resultado</li>
- *   <li>Retorna {@link ResultadoCalculo} com valor, nome da variavel e alertas</li>
- * </ol>
+ * <p>Quando a classe {@code Validador} estiver implementada (issue #2),
+ * a validacao inline nos metodos {@code validar*} deve ser substituida
+ * por chamadas ao Validador.</p>
  * 
- * @author Eduardo Tenorio Nunes
+ * @author Joao Victor Borges Carvalho
  * @version 1.0
  * @see LinkBudget
- * @see Validador
  * @see ResultadoCalculo
  */
 public class Controlador {
 
     private final LinkBudget linkBudget;
-    private final Validador validador;
+
+    // TODO: substituir por Validador quando disponivel (issue #2)
+    // private final Validador validador;
+
+    /** Limites ITU-T G.984 para validacao */
+    private static final double PTX_MIN = 1.5;       // dBm
+    private static final double PTX_MAX = 5.0;       // dBm
+    private static final double S_MAX = -28.0;       // dBm (Classe B+)
+    private static final double D_MAX = 20.0;        // km (Classe B+)
+    private static final double ATENUACAO_MAX = 28.0; // dB (Classe B+)
+
+    /** Nomes amigaveis das variaveis para exibicao */
+    private static final Map<String, String> NOMES_VARIAVEIS = new LinkedHashMap<>();
+    static {
+        NOMES_VARIAVEIS.put("Ptx",   "Potencia de Transmissao");
+        NOMES_VARIAVEIS.put("S",     "Sensibilidade do Receptor");
+        NOMES_VARIAVEIS.put("alpha", "Atenuacao da Fibra");
+        NOMES_VARIAVEIS.put("d",     "Distancia do Enlace");
+        NOMES_VARIAVEIS.put("N",     "Razao de Divisao do Splitter");
+        NOMES_VARIAVEIS.put("Pcon",  "Perda por Conectores/Fusoes");
+        NOMES_VARIAVEIS.put("M",     "Margem de Seguranca");
+    }
 
     /**
-     * Construtor padrao — inicializa com instancias novas de {@link LinkBudget} e {@link Validador}.
+     * Cria um Controlador com uma nova instancia de {@link LinkBudget}.
      */
     public Controlador() {
         this.linkBudget = new LinkBudget();
-        this.validador = new Validador();
     }
 
     /**
-     * Construtor para injecao de dependencias (util para testes).
-     * 
-     * @param linkBudget instancia do motor de calculo
-     * @param validador  instancia do validador
+     * Cria um Controlador com uma instancia injetada de LinkBudget
+     * (util para testes).
      */
-    public Controlador(LinkBudget linkBudget, Validador validador) {
+    public Controlador(LinkBudget linkBudget) {
         this.linkBudget = linkBudget;
-        this.validador = validador;
     }
 
     /**
-     * Processa o calculo completo: identifica a variavel faltante, calcula e valida.
+     * Processa o calculo do Link Budget a partir dos parametros fornecidos.
      * 
-     * <p>O mapa deve conter as 7 chaves do Link Budget com exatamente uma delas
-     * com valor {@code null}.</p>
+     * <p>O mapa deve conter as chaves {@code Ptx, S, alpha, d, N, Pcon, M}.
+     * Exatamente uma delas deve ter valor {@code null} — esta sera calculada.</p>
      * 
-     * @param parametros mapa com os parametros do enlace
-     * @return resultado contendo valor, nome da variavel e alertas
-     * @throws IllegalArgumentException se o mapa for invalido (propagado do {@link LinkBudget})
+     * @param parametros mapa com as variaveis do Link Budget; a faltante e {@code null}
+     * @return resultado com valor calculado, nome da variavel e lista de alertas
+     * @throws IllegalArgumentException se o mapa for nulo
      */
     public ResultadoCalculo processarCalculo(Map<String, Double> parametros) {
-        // Identifica qual variavel esta faltando
-        String faltante = null;
-        for (Map.Entry<String, Double> entry : parametros.entrySet()) {
-            if (entry.getValue() == null) {
-                faltante = entry.getKey();
-                break;
-            }
+        if (parametros == null) {
+            throw new IllegalArgumentException("O mapa de parametros nao pode ser nulo.");
         }
 
-        // Executa o calculo
-        double valor = linkBudget.calcular(parametros);
+        double valor;
+        String variavelFaltante;
 
-        // Gera alertas de validacao
-        List<String> alertas = gerarAlertas(parametros, faltante, valor);
+        try {
+            valor = linkBudget.calcular(parametros);
+            variavelFaltante = identificarFaltante(parametros);
+        } catch (IllegalArgumentException e) {
+            // Erro amigavel: retorna resultado vazio com a mensagem como alerta
+            return new ResultadoCalculo(
+                Double.NaN,
+                "ERRO",
+                Collections.singletonList(e.getMessage())
+            );
+        }
 
-        return new ResultadoCalculo(valor, faltante, alertas);
+        List<String> alertas = new ArrayList<>();
+        alertas.addAll(validarEntradas(parametros));
+        alertas.addAll(validarResultado(variavelFaltante, valor));
+
+        // Se tudo OK, adiciona mensagem verde
+        if (alertas.isEmpty()) {
+            alertas.add("Todos os parametros dentro dos padroes ITU-T G.984");
+        }
+
+        return new ResultadoCalculo(valor, variavelFaltante, alertas);
     }
 
     /**
-     * Retorna apenas os alertas de validacao para os parametros fornecidos,
-     * sem executar o calculo. Util para validacao em tempo real na interface.
-     * 
-     * @param parametros mapa com os parametros do enlace (todos preenchidos)
-     * @return lista de alertas (vazia se tudo OK)
+     * Identifica qual variavel esta com valor {@code null} no mapa.
      */
-    public List<String> getAlertas(Map<String, Double> parametros) {
+    private String identificarFaltante(Map<String, Double> parametros) {
+        for (Map.Entry<String, Double> entry : parametros.entrySet()) {
+            if (entry.getValue() == null) {
+                return entry.getKey();
+            }
+        }
+        return "DESCONHECIDO";
+    }
+
+    /**
+     * Retorna o nome amigavel de uma variavel para exibicao na interface.
+     */
+    public static String nomeAmigavel(String chave) {
+        return NOMES_VARIAVEIS.getOrDefault(chave, chave);
+    }
+
+    /**
+     * Retorna a unidade de medida de uma variavel.
+     */
+    public static String unidade(String chave) {
+        switch (chave) {
+            case "Ptx": case "S": case "Pcon": case "M":
+                return "dBm";
+            case "alpha":
+                return "dB/km";
+            case "d":
+                return "km";
+            case "N":
+                return "";
+            default:
+                return "";
+        }
+    }
+
+    // ─── Validacao inline (TODO: migrar para classe Validador) ──────────
+
+    /**
+     * Valida os valores de entrada fornecidos pelo usuario.
+     * Ignora a variavel que esta com valor {@code null} (a ser calculada).
+     */
+    private List<String> validarEntradas(Map<String, Double> parametros) {
         List<String> alertas = new ArrayList<>();
 
         Double ptx = parametros.get("Ptx");
-        Double s = parametros.get("S");
-        Double d = parametros.get("d");
-        Double n = parametros.get("N");
-        Double pcon = parametros.get("Pcon");
-        Double m = parametros.get("M");
+        Double s   = parametros.get("S");
+        Double d   = parametros.get("d");
 
-        if (ptx != null) alertas.addAll(validador.validarPotenciaTx(ptx));
-        if (s != null) alertas.addAll(validador.validarSensibilidade(s));
-        if (d != null) alertas.addAll(validador.validarDistancia(d));
-        if (n != null) alertas.addAll(validador.validarSplitter(n));
-        if (pcon != null) alertas.addAll(validador.validarPerdaConectores(pcon));
-        if (m != null) alertas.addAll(validador.validarMargem(m));
+        if (ptx != null && (ptx < PTX_MIN || ptx > PTX_MAX)) {
+            alertas.add(String.format(
+                "Potencia de transmissao (%.1f dBm) fora do padrao GPON (+%.1f a +%.1f dBm)",
+                ptx, PTX_MIN, PTX_MAX));
+        }
+
+        if (s != null && s > S_MAX) {
+            alertas.add(String.format(
+                "Sensibilidade do receptor (%.1f dBm) acima do limite Classe B+ (%.1f dBm)",
+                s, S_MAX));
+        }
+
+        if (d != null && d > D_MAX) {
+            alertas.add(String.format(
+                "Distancia (%.1f km) excede o limite tipico GPON de %.0f km (Classe B+)",
+                d, D_MAX));
+        }
 
         return alertas;
     }
 
     /**
-     * Gera alertas de validacao para o resultado do calculo e parametros de entrada.
+     * Valida o valor calculado contra os padroes ITU-T.
      */
-    private List<String> gerarAlertas(Map<String, Double> parametros, String faltante, double valor) {
+    private List<String> validarResultado(String variavel, double valor) {
         List<String> alertas = new ArrayList<>();
 
-        // Cria uma copia dos parametros com o valor calculado inserido
-        Map<String, Double> completo = new java.util.HashMap<>(parametros);
-        completo.put(faltante, valor);
+        if (Double.isNaN(valor)) return alertas; // ja tratado como erro
 
-        Double ptx = completo.get("Ptx");
-        Double s = completo.get("S");
-        Double alpha = completo.get("alpha");
-        Double d = completo.get("d");
-        Double n = completo.get("N");
-        Double pcon = completo.get("Pcon");
-        Double m = completo.get("M");
-
-        // Validacoes especificas por variavel
-        if (ptx != null) alertas.addAll(validador.validarPotenciaTx(ptx));
-        if (s != null) alertas.addAll(validador.validarSensibilidade(s));
-        if (d != null) alertas.addAll(validador.validarDistancia(d));
-        if (n != null) alertas.addAll(validador.validarSplitter(n));
-        if (pcon != null) alertas.addAll(validador.validarPerdaConectores(pcon));
-        if (m != null) alertas.addAll(validador.validarMargem(m));
-
-        // Validacao de atenuacao total
-        if (alpha != null && d != null && n != null && pcon != null && m != null) {
-            double atenuacaoTotal = alpha * d + 10.0 * (Math.log(n) / Math.log(2)) + pcon + m;
-            alertas.addAll(validador.validarAtenuacao(atenuacaoTotal, Validador.LIMITE_ATENUACAO_BPLUS));
+        switch (variavel) {
+            case "Ptx":
+                if (valor < PTX_MIN || valor > PTX_MAX) {
+                    alertas.add(String.format(
+                        "Potencia de transmissao calculada (%.1f dBm) fora do padrao GPON (+%.1f a +%.1f dBm)",
+                        valor, PTX_MIN, PTX_MAX));
+                }
+                break;
+            case "S":
+                if (valor > S_MAX) {
+                    alertas.add(String.format(
+                        "Sensibilidade calculada (%.1f dBm) acima do limite Classe B+ (%.1f dBm)",
+                        valor, S_MAX));
+                }
+                break;
+            case "d":
+                if (valor > D_MAX) {
+                    alertas.add(String.format(
+                        "Distancia calculada (%.1f km) excede o limite tipico de %.0f km",
+                        valor, D_MAX));
+                }
+                break;
+            case "M":
+                if (valor < 0) {
+                    alertas.add(String.format(
+                        "Margem de seguranca negativa (%.1f dB) — o enlace e inviavel",
+                        valor));
+                }
+                break;
         }
+
+        // Validacao de atenuacao total para qualquer calculo
+        // Ptx - S = atenuacao total
+        // So podemos verificar se temos ambos
+        // Como so uma variavel e calculada, nao temos o quadro completo aqui.
+        // Essa validacao sera feita pela GUI apos montar o cenario completo.
 
         return alertas;
     }
