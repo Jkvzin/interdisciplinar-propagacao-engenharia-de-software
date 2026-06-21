@@ -1,0 +1,108 @@
+@startuml
+title Diagrama de Classes — Calculadora Link Budget GPON
+
+' ─── Model ──────────────────────────────────────────
+
+class LinkBudget <<Model>> {
+  + calcular(Map<String,Double>) : double
+  - validarChaves(Map<String,Double>) : void
+  - calcularPorVariavel(String, Map<String,Double>) : double
+  - validarResultado(String, double) : void
+  - perdaSplitter(double) : double
+  - calcularPotenciaTx(double x6) : double
+  - calcularSensibilidade(double x6) : double
+  - calcularAtenuacao(double x6) : double
+  - calcularDistancia(double x6) : double
+  - calcularDivisaoSplitter(double x6) : double
+  - calcularPerdaConectores(double x6) : double
+  - calcularMargem(double x5) : double
+}
+
+class Equipamento <<Model>> {
+  - potenciaTx : double
+  - sensibilidade : double
+  - perdaInsercao : double
+  - atenuacaoFibra : double
+  - margem : double
+  + getPotenciaTx() : double
+  + setPotenciaTx(double) : void
+  + getSensibilidade() : double
+  + setSensibilidade(double) : void
+  + getPerdaInsercao() : double
+  + setPerdaInsercao(double) : void
+  + getAtenuacaoFibra() : double
+  + setAtenuacaoFibra(double) : void
+  + getMargem() : double
+  + setMargem(double) : void
+}
+
+class Validador <<Model>> {
+  + validarPotenciaTx(double) : List<String>
+  + validarSensibilidade(double) : List<String>
+  + validarDistancia(double) : List<String>
+  + validarAtenuacao(double, double) : List<String>
+  + validarSplitter(double) : List<String>
+  + validarPerdaConectores(double) : List<String>
+  + validarMargem(double) : List<String>
+  - LIMITE_ATENUACAO_BPLUS : double = 28.0 {static}
+  - LIMITE_ATENUACAO_CPLUS : double = 32.0 {static}
+  - DISTANCIA_MAX_BPLUS : double = 20.0 {static}
+  - DISTANCIA_MAX_CPLUS : double = 60.0 {static}
+}
+
+' ─── Controller ─────────────────────────────────────
+
+class Controlador <<Controller>> {
+  - linkBudget : LinkBudget
+  - validador : Validador
+  + processarCalculo(Map<String,Double>) : ResultadoCalculo
+  + getAlertas(Map<String,Double>) : List<String>
+}
+
+class ResultadoCalculo {
+  - valor : double
+  - variavel : String
+  - alertas : List<String>
+  + getValor() : double
+  + getVariavel() : String
+  + getAlertas() : List<String>
+}
+
+' ─── View ───────────────────────────────────────────
+
+class CalculadoraGUI <<View>> {
+  - controlador : Controlador
+  - campos : Map<String,JTextField>
+  - comboSplitter : JComboBox
+  - areaResultado : JTextArea
+  - btnCalcular : JButton
+  + iniciar() : void
+  - configurarLayout() : void
+  - onCalcular() : void
+  - exibirResultado(ResultadoCalculo) : void
+  - exibirAlertas(List<String>) : void
+}
+
+' ─── Relacionamentos ────────────────────────────────
+
+CalculadoraGUI --> Controlador : "usa"
+Controlador --> LinkBudget : "calcula com"
+Controlador --> Validador : "valida com"
+Controlador ..> ResultadoCalculo : "retorna"
+
+Equipamento -- LinkBudget : "fornece dados"
+
+LinkBudget ..> IllegalArgumentException : "lanca"
+
+note right of LinkBudget
+  Equacao fundamental:
+  Ptx - S = α·d + 10·log₂(N) + Pcon + M
+end note
+
+note bottom of Validador
+  Valida contra padroes
+  ITU-T G.984 (GPON)
+  e G.652 (fibra optica)
+end note
+
+@enduml
