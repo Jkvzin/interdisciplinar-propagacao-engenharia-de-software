@@ -1,0 +1,25 @@
+# Java
+*.class
+*.jar
+*.war
+target/
+out/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+dependency-reduced-pom.xml
+
+# Logs
+*.log

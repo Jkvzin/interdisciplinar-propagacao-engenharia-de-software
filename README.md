@@ -88,4 +88,5 @@ O projeto segue o padrao **MVC** (Model-View-Controller):
 ## Autores
 
 - Joao Victor Borges Carvalho (Jkvzin)
+- Eduardo Tenorio Nunes (EduardoTenorioNunes)
 - Joao Guilherme Garcia Mangueira (JoaoGarciaM)
