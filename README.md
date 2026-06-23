@@ -1,57 +1,93 @@
-# Calculadora de Link Budget GPON
+# Calculadora de Link Budget GPON v1.1
 
-Projeto Interdisciplinar — Propagacao de Ondas Eletromagneticas × Engenharia de Software
+Projeto Interdisciplinar — Propagação de Ondas Eletromagnéticas × Engenharia de Software
 
-Calculadora de Link Budget para redes GPON (Gigabit Passive Optical Network). Permite que um engenheiro de telecomunicacoes dimensione enlaces GPON de forma interativa, isolando qualquer variavel da equacao fundamental de propagacao optica.
+Calculadora de Link Budget para redes GPON (ITU-T G.984.2 / G.652). Permite dimensionar enlaces ópticos de forma interativa, isolando qualquer variável da equação fundamental de propagação.
 
-## Equacao Fundamental
+---
+
+## Equação Fundamental
 
 ```
-Ptx - S = α × d + 10·log₂(N) + Pcon + M
+Ptx − S = α × d + 10·log₁₀(N) + Pcon + M
 ```
 
-| Simbolo | Descricao                     | Unidade | Valores Tipicos              |
-|---------|-------------------------------|---------|------------------------------|
-| Ptx     | Potencia de transmissao (OLT) | dBm     | +1.5 a +5                    |
-| S       | Sensibilidade do receptor     | dBm     | -28 (Classe B+), -27 (C+)    |
-| α       | Atenuacao da fibra G.652      | dB/km   | 0.35 (1490 nm DS)            |
-| d       | Distancia do enlace           | km      | max 20 (B+), max 60 (C+)     |
-| N       | Razao de divisao do splitter  | —       | 2, 4, 8, 16, 32, 64          |
-| Pcon    | Perda por conectores/fusoes   | dB      | ~0.5 por conector            |
-| M       | Margem de seguranca           | dB      | 3 (recomendado)              |
+| Símbolo | Descrição | Unidade | Valores Típicos |
+|---------|-----------|---------|-----------------|
+| Ptx | Potência de transmissão (OLT) | dBm | +1.5 a +5 |
+| S | Sensibilidade do receptor (ONU) | dBm | −28 (Classe B+) |
+| α | Atenuação da fibra G.652 | dB/km | 0.28 (1490 nm) / 0.35 (1310 nm) |
+| d | Distância do enlace | km | máx 20 (B+), máx 60 (C+) |
+| N | Razão de divisão do splitter | — | 1:2 a 1:64 (cascata suportada) |
+| Pcon | Perda por conectores + fusões | dB | 0.5 por conector / 0.1 por fusão |
+| M | Margem de segurança | dB | ≥ 3 (recomendado) |
 
-## Como Usar (MUITO FACIL!)
+---
+
+## Como Usar
 
 ### No Windows
-**So dar 2 cliques no arquivo `rodar.bat`**
-
-Pronto. A calculadora abre sozinha. Nao precisa instalar nada alem do Java.
+Dê 2 cliques no arquivo **`rodar.bat`**
 
 ### No Linux / Mac
-Abra o terminal na pasta do projeto e digite:
-
 ```bash
 ./rodar.sh
 ```
 
-### Se nao abrir
-Provavelmente falta o Java. Instale em: https://adoptium.net/
-(So clicar no botao azul de download e instalar como qualquer programa)
+### Se não abrir
+Instale o Java: https://adoptium.net/
 
 ---
 
-## Como funciona
+## Funcionamento
 
-1. Preencha os campos com os valores que voce conhece
-2. Deixe **UM** campo em branco — e o que voce quer descobrir
-3. Clique em **Calcular**
-4. O resultado aparece no quadro verde
-5. Se tiver algo fora do padrao, aparece um alerta
+1. Preencha os campos com os valores que você conhece
+2. Deixe **UM** campo em branco — é o que você quer calcular
+3. Escolha o comprimento de onda (1490 nm downstream / 1310 nm upstream)
+4. Selecione o splitter e, opcionalmente, um segundo splitter em cascata
+5. Informe o número de conectores e fusões (a perda total é calculada automaticamente)
+6. Clique em **Calcular** (ou `Ctrl+Enter`)
+7. O resultado aparece destacado em verde
+8. Alertas de validação ITU-T aparecem abaixo, se houver
 
-**Exemplo:** Se voce sabe a potencia (+3 dBm), a sensibilidade (-28 dBm), 
-a distancia (10 km), o splitter (1:32) e os conectores (1.5 dB), 
-mas quer saber a **margem de seguranca** — deixe o campo "Margem" em branco 
-e clique em Calcular. Resultado: ~3 dB.
+---
+
+## O que Dá pra Calcular
+
+Deixe **UM** destes campos vazio e clique em Calcular:
+
+| Campo | O sistema calcula |
+|-------|-------------------|
+| Potência de Transmissão | Qual Ptx você precisa |
+| Sensibilidade do Receptor | Qual sensibilidade a ONU precisa ter |
+| Distância | Qual o alcance máximo do enlace |
+| Atenuação da Fibra | Qual atenuação a fibra suporta |
+| Margem de Segurança | Qual a folga do enlace |
+
+**Exemplo prático:** Você sabe a potência (+3 dBm), a sensibilidade (−28 dBm), a distância (10 km), o splitter (1:32) e os conectores (2 conectores × 0.5 dB + 4 fusões × 0.1 dB = 1.4 dB), mas quer saber a **margem de segurança**. Deixe o campo "Margem" em branco e clique Calcular.
+
+---
+
+## Acessibilidade
+
+A calculadora foi projetada com foco em acessibilidade:
+
+| Recurso | Como usar |
+|---------|-----------|
+| **A− / A+** | 3 tamanhos de fonte (12pt / 18pt / 24pt) — a janela redimensiona junto |
+| **Alto Contraste** | Fundo escuro com texto claro e bordas grossas |
+| **Teclado** | `Alt+letra` em cada campo, `Tab` para navegar, `Ctrl+Enter` para calcular |
+| **Leitor de tela** | Todos os campos têm nomes e descrições acessíveis (NVDA / JAWS) |
+| **Tooltips** | Passe o mouse sobre qualquer campo para ver explicação |
+
+---
+
+## Classes de Operação GPON
+
+| Classe | Atenuação Máx | Alcance Típico | Splitter Típico |
+|--------|--------------|----------------|-----------------|
+| B+ | 28 dB | ~20 km | 1:32 |
+| C+ | 32 dB | ~60 km | 1:64 |
 
 ---
 
@@ -59,69 +95,85 @@ e clique em Calcular. Resultado: ~3 dB.
 
 ```
 .
-├── pom.xml                          # Maven (JUnit 5)
-├── PRD.md                           # Documento de Requisitos
+├── pom.xml
 ├── README.md
+├── PRD.md
+├── rodar.bat / rodar.sh
 ├── docs/
-│   └── diagrama_classes.png         # Diagrama de Classes UML
+│   ├── diagrama_classes.png
+│   ├── diagrama_caso_uso.png
+│   ├── documento_requisitos.md
+│   └── requisitos_gpon_calculadora.pdf
 ├── src/
-│   ├── main/java/model/
-│   │   └── LinkBudget.java          # Classe de calculo do Link Budget
-│   └── test/java/model/
-│       └── LinkBudgetTest.java      # Testes unitarios JUnit 5
+│   ├── main/java/
+│   │   ├── model/
+│   │   │   ├── LinkBudget.java        # Motor de cálculo
+│   │   │   ├── Equipamento.java       # Parâmetros físicos GPON
+│   │   │   └── Validador.java         # Validação ITU-T G.984 / G.652
+│   │   ├── controller/
+│   │   │   ├── Controlador.java       # Ponte Model ↔ View
+│   │   │   └── ResultadoCalculo.java  # DTO de resultado
+│   │   └── ui/
+│   │       └── CalculadoraGUI.java    # Interface Swing com acessibilidade
+│   └── test/java/
+│       ├── model/
+│       │   └── LinkBudgetTest.java    # 21 testes unitários
+│       └── controller/
+│           └── ControladorTest.java   # 19 testes unitários
 ```
 
-## Pre-requisitos
+---
 
-- **JDK 11+** (desenvolvido com JDK 26)
-- **Maven 3.6+** (para build e testes)
+## Arquitetura (MVC)
 
-## Como Compilar
-
-```bash
-mvn compile
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────┐
+│    Model      │     │      View         │     │  Controller   │
+│  LinkBudget   │────▶│ CalculadoraGUI     │◀────│ Controlador   │
+│  Equipamento  │     │  Swing + A11y      │     │               │
+│  Validador    │     │  (A−/A+, contraste)│     │               │
+└──────────────┘     └──────────────────┘     └──────────────┘
 ```
 
-## Como Executar os Testes
+---
+
+## Compilar e Testar
 
 ```bash
+# Compilar
+javac -d out src/main/java/model/*.java src/main/java/controller/*.java src/main/java/ui/*.java
+
+# Rodar
+java -cp out ui.CalculadoraGUI
+
+# Testes (JUnit 5 — 40 testes)
 mvn test
 ```
 
-Os testes cobrem:
-- Calculo isolado de cada uma das 7 variaveis
-- Cenarios GPON reais (classe B+, splitter 1:32)
-- Round-trip: consistencia bidirecional dos calculos
-- Condicoes de erro: multiplas variaveis faltantes, resultados fisicamente impossiveis
-- Idempotencia dos calculos
+---
 
-## Como Empacotar
+## Novidades da v1.1
 
-```bash
-mvn package
-```
+- **Fórmula corrigida:** splitter usa `10·log₁₀(N)` (antes usava log₂ — perdas estavam 3.3× maiores)
+- **Comprimento de onda:** seleção 1490 nm (downstream) / 1310 nm (upstream) com alpha automático
+- **Splitter secundário:** suporte a dois splitters em cascata
+- **Conectores e fusões:** contagem individual com perda por unidade
+- **Validador ITU-T:** integrado ao Controlador com alertas de atenuação total
+- **Acessibilidade:** A−/A+, alto contraste, teclado completo, leitor de tela
+- **Janela responsiva:** redimensiona automaticamente ao mudar o tamanho da fonte
 
-## Arquitetura
+---
 
-O projeto segue o padrao **MVC** (Model-View-Controller):
+## Referências Técnicas
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│    Model      │     │    View       │     │  Controller   │
-│  LinkBudget   │────▶│ CalculadoraGUI │◀────│ Controlador   │
-│  Equipamento  │     │  (Swing)      │     │               │
-│  Validador    │     └──────────────┘     └──────────────┘
-└──────────────┘
-```
+- **ITU-T G.984.2** — GPON: Physical Media Dependent layer
+- **ITU-T G.652** — Single-mode optical fibre characteristics
+- **ITU-T G.984.1** — GPON: General characteristics
 
-## Referencias Tecnicas
-
-- **ITU-T G.984** — Gigabit-capable Passive Optical Networks (GPON)
-- **ITU-T G.652** — Characteristics of a single-mode optical fibre and cable
-- **GSA-PCS PRO 2026** — Padroes de mercado para dimensionamento GPON
+---
 
 ## Autores
 
-- Joao Victor Borges Carvalho (Jkvzin)
-- Eduardo Tenorio Nunes (EduardoTenorioNunes)
-- Joao Guilherme Garcia Mangueira (JoaoGarciaM)
+- João Victor Borges Carvalho ([Jkvzin](https://github.com/Jkvzin))
+- Eduardo Tenorio Nunes ([EduardoTenorioNunes](https://github.com/EduardoTenorioNunes))
+- João Guilherme Garcia Mangueira ([JoaoGarciaM](https://github.com/JoaoGarciaM))
