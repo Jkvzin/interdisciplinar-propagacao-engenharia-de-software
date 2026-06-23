@@ -13,84 +13,67 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Calculadora de Link Budget GPON com acessibilidade embutida.
+ * Calculadora de Link Budget GPON com acessibilidade.
  *
- * <p>Layout em duas colunas com todas as secoes visiveis sem scroll.</p>
- * <p>Botao de acessibilidade (⚙) abre dialogo com opcoes de
- * fonte e alto contraste. Suporte a leitor de tela e navegacao
- * completa por teclado (Alt+letra).</p>
+ * <p>Barra superior com A-/A+ (fonte) e toggle de alto contraste.
+ * Layout em coluna unica com scroll. Suporte a leitores de tela
+ * (NVDA/JAWS) e navegacao completa por teclado (Alt+letra).</p>
  */
 public class CalculadoraGUI extends JFrame {
 
-    private final Controlador controlador;
-    private final Equipamento equipamento;
+    private final Controlador controlador = new Controlador();
+    private final Equipamento equipamento = new Equipamento();
     private final Map<String, JTextField> campos = new HashMap<>();
 
     // Componentes
-    private JComboBox<String> comboWL;
-    private JTextField campoAlpha;
-    private JComboBox<String> comboS1, comboS2;
+    private JComboBox<String> comboWL, comboS1, comboS2;
+    private JTextField campoAlpha, campoNCon, campoPCon, campoNFus, campoPFus;
     private JCheckBox chkS2;
-    private JTextField campoNCon, campoPCon, campoNFus, campoPFus;
     private JLabel labelPconTotal;
     private JTextArea areaResultado, areaAlertas;
-    private JButton btnCalcular, btnAcessibilidade;
+    private JButton btnCalcular;
 
-    // Estado
-    private int nivelFonte = 1; // 0=normal 1=grande 2=enorme
+    // Acessibilidade
+    private int nivelFonte = 1;
     private boolean altoContraste = false;
     private final List<JComponent> todosComp = new ArrayList<>();
     private final List<JLabel> todosLabels = new ArrayList<>();
     private final List<JPanel> secoes = new ArrayList<>();
-    private final List<JTextField> camposConectores = new ArrayList<>();
 
-    private static final int[] FS = {12, 18, 24};
-    private static final int[] FT = {13, 20, 26};
-    private static final int[] FB = {14, 22, 28};
-    private static final int[] FBTN = {16, 24, 32};
-
+    private static final int[] FS = {12, 18, 24}, FT = {13, 20, 26}, FB = {14, 22, 28}, FBTN = {16, 24, 32};
     private static final String[] SPLIT = {"1:2","1:4","1:8","1:16","1:32","1:64"};
     private static final double[] SPLIT_V = {2,4,8,16,32,64};
     private static final String[] WL = {"1490 nm (Downstream)","1310 nm (Upstream)"};
     private static final int[] WL_V = {1490,1310};
 
     public CalculadoraGUI() {
-        controlador = new Controlador();
-        equipamento = new Equipamento();
-        setTitle("Calculadora de Link Budget GPON");
+        setTitle("Calculadora de Link Budget — GPON");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(880, 720);
-        setMinimumSize(new Dimension(800, 650));
+        setSize(620, 780);
+        setMinimumSize(new Dimension(520, 680));
         setLocationRelativeTo(null);
         construir();
         aplicarTema();
     }
 
-    // ═══════════════ CONSTRUCAO ═══════════════
-
     private void construir() {
-        JPanel root = new JPanel(new BorderLayout(8, 8));
-        root.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel root = new JPanel(new BorderLayout(6, 6));
+        root.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        // Cabecalho: titulo + botao acessibilidade
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        JLabel titulo = new JLabel("Link Budget — GPON (ITU-T G.984.2 / G.652)");
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        header.add(titulo, BorderLayout.WEST);
+        // Barra de acessibilidade
+        root.add(criarBarraAcessibilidade(), BorderLayout.NORTH);
 
-        btnAcessibilidade = new JButton("⚙ Acessibilidade");
-        btnAcessibilidade.setToolTipText("Abrir opcoes de acessibilidade (tamanho da fonte, alto contraste)");
-        btnAcessibilidade.addActionListener(e -> abrirDialogoAcessibilidade());
-        acessivel(btnAcessibilidade, "Acessibilidade", "Abre dialogo com opcoes de fonte e contraste");
-        header.add(btnAcessibilidade, BorderLayout.EAST);
-        root.add(header, BorderLayout.NORTH);
+        // Entrada com scroll
+        JPanel entrada = criarPainelEntrada();
+        JScrollPane scrollEntrada = new JScrollPane(entrada);
+        scrollEntrada.setBorder(null);
+        scrollEntrada.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollEntrada.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollEntrada.getVerticalScrollBar().setUnitIncrement(20);
+        root.add(scrollEntrada, BorderLayout.CENTER);
 
-        // Painel de entrada em 2 colunas
-        root.add(criarEntrada2Colunas(), BorderLayout.CENTER);
-
-        // Sul: botao calcular + resultado
-        JPanel sul = new JPanel(new BorderLayout(0, 6));
+        // Sul: botao + resultado
+        JPanel sul = new JPanel(new BorderLayout(0, 4));
         sul.setOpaque(false);
 
         btnCalcular = criarBotaoCalcular();
@@ -101,7 +84,6 @@ public class CalculadoraGUI extends JFrame {
         sul.add(criarPainelSaida(), BorderLayout.CENTER);
         root.add(sul, BorderLayout.SOUTH);
 
-        // Tecla de atalho
         getRootPane().setDefaultButton(btnCalcular);
         getRootPane().registerKeyboardAction(e -> onCalcular(),
             KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
@@ -110,35 +92,53 @@ public class CalculadoraGUI extends JFrame {
         add(root);
     }
 
-    private JPanel criarEntrada2Colunas() {
-        JPanel grid = new JPanel(new GridBagLayout());
-        GridBagConstraints g = new GridBagConstraints();
-        g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(4, 8, 4, 8);
-        g.anchor = GridBagConstraints.NORTHWEST;
+    // ═══════════ BARRA ACESSIBILIDADE ═══════════
 
-        // Coluna esquerda
-        JPanel colEsq = new JPanel();
-        colEsq.setLayout(new BoxLayout(colEsq, BoxLayout.Y_AXIS));
-        colEsq.add(secao("Comprimento de Onda e Fibra", this::wlFibra));
-        colEsq.add(Box.createVerticalStrut(6));
-        colEsq.add(secao("Parametros do Enlace", this::paramsEnlace));
+    private JPanel criarBarraAcessibilidade() {
+        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        barra.setBorder(new EmptyBorder(2, 0, 4, 0));
 
-        // Coluna direita
-        JPanel colDir = new JPanel();
-        colDir.setLayout(new BoxLayout(colDir, BoxLayout.Y_AXIS));
-        colDir.add(secao("Divisores Opticos (Splitters)", this::splitters));
-        colDir.add(Box.createVerticalStrut(6));
-        colDir.add(secao("Conectores e Fusoes", this::conectores));
-        colDir.add(Box.createVerticalStrut(6));
-        colDir.add(secao("Margem de Seguranca", this::margem));
+        JButton btnMenos = new JButton("A−");
+        btnMenos.setToolTipText("Diminuir tamanho da fonte");
+        btnMenos.addActionListener(e -> { if (nivelFonte > 0) { nivelFonte--; aplicarTema(); }});
 
-        g.gridx=0; g.gridy=0; g.weightx=0.5; g.weighty=1;
-        grid.add(colEsq, g);
-        g.gridx=1; g.weightx=0.5;
-        grid.add(colDir, g);
+        JButton btnMais = new JButton("A+");
+        btnMais.setToolTipText("Aumentar tamanho da fonte");
+        btnMais.addActionListener(e -> { if (nivelFonte < 2) { nivelFonte++; aplicarTema(); }});
 
-        return grid;
+        JToggleButton btnContraste = new JToggleButton("◐ Alto Contraste");
+        btnContraste.setToolTipText("Alterna modo alto contraste (fundo escuro, texto claro)");
+        btnContraste.addItemListener(e -> {
+            altoContraste = e.getStateChange() == ItemEvent.SELECTED;
+            aplicarTema();
+        });
+
+        barra.add(new JLabel("Acessibilidade:"));
+        barra.add(btnMenos);
+        barra.add(btnMais);
+        barra.add(btnContraste);
+
+        todosComp.add(btnMenos);
+        todosComp.add(btnMais);
+        todosComp.add(btnContraste);
+        return barra;
+    }
+
+    // ═══════════ PAINEL ENTRADA ═══════════
+
+    private JPanel criarPainelEntrada() {
+        JPanel painel = new JPanel();
+        painel.setLayout(new BoxLayout(painel, BoxLayout.Y_AXIS));
+        painel.add(secao("Comprimento de Onda e Fibra", this::wlFibra));
+        painel.add(Box.createVerticalStrut(5));
+        painel.add(secao("Parametros do Enlace", this::paramsEnlace));
+        painel.add(Box.createVerticalStrut(5));
+        painel.add(secao("Divisores Opticos (Splitters)", this::splitters));
+        painel.add(Box.createVerticalStrut(5));
+        painel.add(secao("Conectores e Fusoes", this::conectores));
+        painel.add(Box.createVerticalStrut(5));
+        painel.add(secao("Margem de Seguranca", this::margem));
+        return painel;
     }
 
     private JPanel secao(String titulo, java.util.function.Consumer<JPanel> fn) {
@@ -200,36 +200,36 @@ public class CalculadoraGUI extends JFrame {
 
     private void conectores(JPanel p) {
         GridBagConstraints g = gbc();
-        // Linha 0: conectores
+
         g.gridy=0; g.gridx=0; g.weightx=0;
-        p.add(label("Nº conectores:", 'C'), g);
-        g.gridx=1; g.weightx=0.4;
+        p.add(label("Numero de conectores:", 'C'), g);
+        g.gridx=1; g.weightx=0.3;
         campoNCon = campoInt("2", "Numero de conectores", "Quantidade de conectores no enlace");
         p.add(campoNCon, g);
+
         g.gridx=2; g.weightx=0;
-        p.add(label(" Perda (dB):", 'E'), g);
-        g.gridx=3; g.weightx=0.4;
+        p.add(label("  Perda por conector (dB):", 'E'), g);
+        g.gridx=3; g.weightx=0.3;
         campoPCon = campoDecimal(String.valueOf(equipamento.getPerdaPorConector()), null,
             "Perda por conector", "Tipico: 0.5 dB (SC/APC)");
         p.add(campoPCon, g);
 
-        // Linha 1: fusoes
         g.gridy=1; g.gridx=0; g.weightx=0;
-        p.add(label("Nº fusoes:", 'F'), g);
-        g.gridx=1; g.weightx=0.4;
+        p.add(label("Numero de fusoes:", 'F'), g);
+        g.gridx=1; g.weightx=0.3;
         campoNFus = campoInt("4", "Numero de fusoes", "Quantidade de emendas por fusao");
         p.add(campoNFus, g);
+
         g.gridx=2; g.weightx=0;
-        p.add(label(" Perda (dB):", 'U'), g);
-        g.gridx=3; g.weightx=0.4;
+        p.add(label("  Perda por fusao (dB):", 'U'), g);
+        g.gridx=3; g.weightx=0.3;
         campoPFus = campoDecimal(String.valueOf(equipamento.getPerdaPorFusao()), null,
             "Perda por fusao", "Tipico: 0.05 a 0.1 dB");
         p.add(campoPFus, g);
 
-        // Total
         g.gridy=2; g.gridx=0; g.gridwidth=4; g.weightx=1;
         labelPconTotal = new JLabel("Perda total: 1.4 dB");
-        labelPconTotal.setToolTipText("Total = conectores × perda/conector + fusoes × perda/fusao");
+        labelPconTotal.setToolTipText("Total = conectores x perda/conector + fusoes x perda/fusao");
         p.add(labelPconTotal, g);
     }
 
@@ -240,36 +240,42 @@ public class CalculadoraGUI extends JFrame {
         campos.get("M").setText(String.valueOf(equipamento.getMargem()));
     }
 
+    // ═══════════ PAINEL SAIDA ═══════════
+
     private JPanel criarPainelSaida() {
         JPanel p = new JPanel(new BorderLayout(5, 5));
         p.setOpaque(false);
 
-        areaResultado = areaTexto(2, "Resultado", "Valor calculado da variavel");
-        areaAlertas = areaTexto(5, "Alertas", "Alertas de validacao ITU-T");
+        areaResultado = new JTextArea(2, 40);
+        areaResultado.setEditable(false);
+        areaResultado.setLineWrap(true);
+        areaResultado.setWrapStyleWord(true);
+        areaResultado.setBorder(BorderFactory.createCompoundBorder(
+            new TitledBorder("Resultado"), new EmptyBorder(6, 10, 6, 10)));
+        acessivel(areaResultado, "Resultado", "Valor calculado da variavel");
+
+        areaAlertas = new JTextArea(5, 40);
+        areaAlertas.setEditable(false);
+        areaAlertas.setLineWrap(true);
+        areaAlertas.setWrapStyleWord(true);
+        areaAlertas.setBorder(BorderFactory.createCompoundBorder(
+            new TitledBorder("Alertas / Avisos"), new EmptyBorder(6, 10, 6, 10)));
+        acessivel(areaAlertas, "Alertas", "Alertas de validacao ITU-T");
 
         JScrollPane sp = new JScrollPane(areaAlertas);
         sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        sp.setPreferredSize(new Dimension(800, 100));
+        sp.setPreferredSize(new Dimension(560, 110));
 
         p.add(areaResultado, BorderLayout.NORTH);
         p.add(sp, BorderLayout.CENTER);
         return p;
     }
 
-    private JTextArea areaTexto(int rows, String titulo, String desc) {
-        JTextArea ta = new JTextArea(rows, 60);
-        ta.setEditable(false);
-        ta.setLineWrap(true);
-        ta.setWrapStyleWord(true);
-        ta.setBorder(BorderFactory.createCompoundBorder(
-            new TitledBorder(titulo), new EmptyBorder(6, 10, 6, 10)));
-        acessivel(ta, titulo, desc);
-        return ta;
-    }
+    // ═══════════ BOTAO CALCULAR ═══════════
 
     private JButton criarBotaoCalcular() {
-        JButton b = new JButton("Calcular Link Budget");
-        b.setMnemonic('L');
+        JButton b = new JButton("Calcular");
+        b.setMnemonic('C');
         b.setToolTipText("Calcula a variavel em branco (atalho: Ctrl+Enter)");
         b.setFocusPainted(true);
         b.setOpaque(true);
@@ -281,69 +287,7 @@ public class CalculadoraGUI extends JFrame {
         return b;
     }
 
-    // ═══════════════ DIALOGO ACESSIBILIDADE ═══════════════
-
-    private void abrirDialogoAcessibilidade() {
-        JDialog dlg = new JDialog(this, "Acessibilidade", true);
-        dlg.setLayout(new BorderLayout(10, 10));
-        dlg.getContentPane().setBackground(SystemColor.control);
-
-        JPanel conteudo = new JPanel(new GridBagLayout());
-        conteudo.setBorder(new EmptyBorder(15, 15, 15, 15));
-        GridBagConstraints g = new GridBagConstraints();
-        g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(8, 5, 8, 5);
-
-        // Tamanho da fonte
-        g.gridy=0; g.gridx=0; g.gridwidth=3;
-        conteudo.add(new JLabel("Tamanho da fonte:"), g);
-        g.gridwidth=1;
-
-        JRadioButton rbNormal = new JRadioButton("Normal (12pt)");
-        JRadioButton rbGrande = new JRadioButton("Grande (18pt)");
-        JRadioButton rbEnorme = new JRadioButton("Enorme (24pt)");
-        ButtonGroup grupo = new ButtonGroup();
-        grupo.add(rbNormal); grupo.add(rbGrande); grupo.add(rbEnorme);
-        switch (nivelFonte) {
-            case 0: rbNormal.setSelected(true); break;
-            case 1: rbGrande.setSelected(true); break;
-            case 2: rbEnorme.setSelected(true); break;
-        }
-
-        g.gridy=1; g.gridx=0; conteudo.add(rbNormal, g);
-        g.gridx=1; conteudo.add(rbGrande, g);
-        g.gridx=2; conteudo.add(rbEnorme, g);
-
-        // Alto contraste
-        g.gridy=2; g.gridx=0; g.gridwidth=3;
-        JCheckBox chkContraste = new JCheckBox("Modo alto contraste (fundo escuro, texto claro)");
-        chkContraste.setSelected(altoContraste);
-        conteudo.add(chkContraste, g);
-
-        // Botoes
-        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnOk = new JButton("Aplicar");
-        JButton btnCancel = new JButton("Cancelar");
-        btnOk.addActionListener(e -> {
-            if (rbNormal.isSelected()) nivelFonte = 0;
-            else if (rbGrande.isSelected()) nivelFonte = 1;
-            else nivelFonte = 2;
-            altoContraste = chkContraste.isSelected();
-            aplicarTema();
-            dlg.dispose();
-        });
-        btnCancel.addActionListener(e -> dlg.dispose());
-        botoes.add(btnOk);
-        botoes.add(btnCancel);
-
-        dlg.add(conteudo, BorderLayout.CENTER);
-        dlg.add(botoes, BorderLayout.SOUTH);
-        dlg.pack();
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
-    }
-
-    // ═══════════════ TEMA ═══════════════
+    // ═══════════ TEMA ═══════════
 
     private void aplicarTema() {
         int fs = FS[nivelFonte], ft = FT[nivelFonte], fb = FB[nivelFonte], fbtn = FBTN[nivelFonte];
@@ -363,28 +307,19 @@ public class CalculadoraGUI extends JFrame {
         Color alertBg = altoContraste ? new Color(60,40,30) : new Color(255,245,230);
 
         for (JLabel lb : todosLabels) { lb.setFont(fp); lb.setForeground(fg); }
-
-        for (JTextField tf : campos.values()) {
-            tf.setFont(fp); tf.setForeground(fg); tf.setBackground(fieldBg); tf.setCaretColor(fg);
-        }
-        for (JTextField tf : new JTextField[]{campoAlpha, campoNCon, campoPCon, campoNFus, campoPFus}) {
+        for (JTextField tf : campos.values()) { tf.setFont(fp); tf.setForeground(fg); tf.setBackground(fieldBg); tf.setCaretColor(fg); }
+        for (JTextField tf : new JTextField[]{campoAlpha,campoNCon,campoPCon,campoNFus,campoPFus})
             if (tf != null) { tf.setFont(fp); tf.setForeground(fg); tf.setBackground(fieldBg); tf.setCaretColor(fg); }
-        }
-        for (JComboBox<?> cb : new JComboBox[]{comboWL, comboS1, comboS2}) {
+        for (JComboBox<?> cb : new JComboBox[]{comboWL,comboS1,comboS2})
             if (cb != null) { cb.setFont(fp); cb.setForeground(fg); cb.setBackground(fieldBg); }
-        }
         if (chkS2 != null) { chkS2.setFont(fp); chkS2.setForeground(fg); }
-
         for (JComponent c : todosComp) c.setFont(fp);
 
         btnCalcular.setFont(fbutton);
         btnCalcular.setBackground(btnCalcBg);
         btnCalcular.setForeground(btnCalcFg);
-        btnCalcular.setBorder(new LineBorder(btnCalcBg.darker(), 2));
-        btnCalcular.setPreferredSize(new Dimension(280, 40 + nivelFonte*12));
-
-        btnAcessibilidade.setFont(fp);
-        btnAcessibilidade.setForeground(fg);
+        btnCalcular.setBorder(new LineBorder(btnCalcBg.darker(), altoContraste?3:2));
+        btnCalcular.setPreferredSize(new Dimension(260, 40 + nivelFonte*12));
 
         if (labelPconTotal != null) { labelPconTotal.setFont(fbold); labelPconTotal.setForeground(accent); }
 
@@ -399,17 +334,15 @@ public class CalculadoraGUI extends JFrame {
         for (JPanel sec : secoes) {
             sec.setBackground(bg);
             if (sec.getBorder() instanceof TitledBorder tb) {
-                tb.setTitleFont(ftitle);
-                tb.setTitleColor(accent);
+                tb.setTitleFont(ftitle); tb.setTitleColor(accent);
             }
         }
 
         getContentPane().setBackground(bg);
-        revalidate();
-        repaint();
+        revalidate(); repaint();
     }
 
-    // ═══════════════ HELPERS ═══════════════
+    // ═══════════ HELPERS ═══════════
 
     private GridBagConstraints gbc() {
         GridBagConstraints g = new GridBagConstraints();
@@ -446,7 +379,6 @@ public class CalculadoraGUI extends JFrame {
         tf.setHorizontalAlignment(JTextField.RIGHT);
         ((AbstractDocument)tf.getDocument()).setDocumentFilter(new FiltroInteiro());
         tf.getDocument().addDocumentListener(new DocListener(this::attPconTotal));
-        camposConectores.add(tf);
         acessivel(tf, nome, desc);
         return tf;
     }
@@ -480,10 +412,10 @@ public class CalculadoraGUI extends JFrame {
         int nf = parseInt(campoNFus.getText());
         double pf = parseDouble(campoPFus.getText(), equipamento.getPerdaPorFusao());
         double t = nc*pc + nf*pf;
-        labelPconTotal.setText(String.format("Perda total: %.2f dB  (%d c.×%.1f + %d f.×%.1f)", t, nc, pc, nf, pf));
+        labelPconTotal.setText(String.format("Perda total: %.2f dB  (%d con. x %.1f + %d fus. x %.1f)", t, nc, pc, nf, pf));
     }
 
-    // ═══════════════ CALCULO ═══════════════
+    // ═══════════ CALCULO ═══════════
 
     private void onCalcular() {
         areaResultado.setText(""); areaAlertas.setText("");
@@ -500,7 +432,7 @@ public class CalculadoraGUI extends JFrame {
         for (var e:tc.entrySet()) {
             if (e.getValue().isEmpty()){p.put(e.getKey(),null);v++;}
             else try{p.put(e.getKey(),Double.parseDouble(e.getValue()));}
-            catch(NumberFormatException ex){err("Valor invalido: "+nome(e.getKey())+" = "+e.getValue());return;}
+            catch(NumberFormatException ex){err("Valor invalido em "+nome(e.getKey())+": "+e.getValue());return;}
         }
         if (v==0){err("Deixe exatamente UM campo em branco.");return;}
         if (v>1){err(v+" campos vazios. Deixe apenas UM.");return;}
@@ -522,6 +454,7 @@ public class CalculadoraGUI extends JFrame {
             mostrarAlertas(r.getAlertas());
         }else{areaAlertas.setText("Nenhum alerta — parametros dentro dos padroes ITU-T.");}
     }
+
     private void err(String m){areaAlertas.setText("⚠ "+m);areaAlertas.setBackground(altoContraste?new Color(80,30,30):new Color(255,230,230));}
     private void mostrarAlertas(List<String> a){StringBuilder sb=new StringBuilder();for(String s:a)sb.append("⚠ ").append(s).append("\n");areaAlertas.setText(sb.toString().trim());}
     private String fmtN(double n){for(double v:new double[]{2,4,8,16,32,64,128,256})if(Math.abs(n-v)<0.05*v)return"1:"+(int)v;return"~1:"+Math.round(n);}
@@ -530,7 +463,7 @@ public class CalculadoraGUI extends JFrame {
     private int parseInt(String s){if(s==null||s.trim().isEmpty())return 0;try{return Integer.parseInt(s.trim());}catch(NumberFormatException e){return 0;}}
     private double parseDouble(String s,double d){if(s==null||s.trim().isEmpty())return d;try{return Double.parseDouble(s.trim());}catch(NumberFormatException e){return d;}}
 
-    // ═══════════════ FILTROS ═══════════════
+    // ═══════════ FILTROS ═══════════
 
     private static class FiltroNumerico extends DocumentFilter {
         public void insertString(FilterBypass fb,int o,String s,AttributeSet a)throws BadLocationException{if(s!=null&&ok(fb,o,s,0))super.insertString(fb,o,s,a);}
