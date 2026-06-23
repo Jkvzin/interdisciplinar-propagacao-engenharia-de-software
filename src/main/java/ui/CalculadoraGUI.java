@@ -49,8 +49,8 @@ public class CalculadoraGUI extends JFrame {
     public CalculadoraGUI() {
         setTitle("Calculadora de Link Budget — GPON");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(720, 800);
-        setMinimumSize(new Dimension(620, 700));
+        setSize(880, 820);
+        setMinimumSize(new Dimension(720, 700));
         setLocationRelativeTo(null);
         construir();
         aplicarTema();
