@@ -6,7 +6,7 @@ import java.util.Map;
  * Classe responsavel pelo calculo do Link Budget GPON.
  * 
  * <p>A equacao fundamental e:</p>
- * <pre>Ptx - S = α × d + 10·log₂(N) + Pcon + M</pre>
+ * <pre>Ptx - S = alpha × d + 10·log10(N) + Pcon + M</pre>
  * 
  * <p>Onde:</p>
  * <ul>
@@ -203,13 +203,13 @@ public class LinkBudget {
     // ─── Metodos auxiliares privados ───────────────────────────────────────
 
     /**
-     * Calcula a perda por divisao do splitter: 10 * log2(N).
+     * Calcula a perda por divisao do splitter: 10 * log10(N).
      * 
      * @param N razao de divisao do splitter
      * @return perda em dB
      */
     private double perdaSplitter(double N) {
-        return 10.0 * (Math.log(N) / Math.log(2));
+        return 10.0 * Math.log10(N);
     }
 
     /**
@@ -247,11 +247,11 @@ public class LinkBudget {
     /**
      * Calcula a razao de divisao do splitter (N) a partir das demais variaveis.
      * <p>Primeiro calcula a perda do splitter: perda = Ptx − S − α·d − Pcon − M</p>
-     * <p>Depois isola N: N = 2^(perda / 10)</p>
+     * <p>Depois isola N: N = 10^(perda / 10)</p>
      */
     private double calcularDivisaoSplitter(double Ptx, double S, double alpha, double d, double Pcon, double M) {
         double perda = Ptx - S - alpha * d - Pcon - M;
-        return Math.pow(2.0, perda / 10.0);
+        return Math.pow(10.0, perda / 10.0);
     }
 
     /**

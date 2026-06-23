@@ -12,13 +12,15 @@ package model;
  * <ul>
  *   <li>Potencia de transmissao: 3.0 dBm (OLT Classe B+)</li>
  *   <li>Sensibilidade: -28.0 dBm (ONU Classe B+)</li>
- *   <li>Perda de insercao: 0.5 dB (conector tipico)</li>
- *   <li>Atenuacao da fibra: 0.35 dB/km (G.652 @ 1490 nm)</li>
+ *   <li>Atenuacao 1490 nm (downstream): 0.28 dB/km (G.652)</li>
+ *   <li>Atenuacao 1310 nm (upstream): 0.35 dB/km (G.652)</li>
+ *   <li>Perda por conector: 0.5 dB</li>
+ *   <li>Perda por fusao: 0.1 dB</li>
  *   <li>Margem de seguranca: 3.0 dB</li>
  * </ul>
  * 
  * @author Eduardo Tenorio Nunes
- * @version 1.0
+ * @version 1.1
  * @see Validador
  * @see LinkBudget
  */
@@ -33,8 +35,17 @@ public class Equipamento {
     /** Perda por insercao de conectores/fusoes (dB). */
     private double perdaInsercao;
 
-    /** Coeficiente de atenuacao da fibra optica (dB/km). */
-    private double atenuacaoFibra;
+    /** Coeficiente de atenuacao da fibra optica a 1490 nm (dB/km). */
+    private double atenuacao1490;
+
+    /** Coeficiente de atenuacao da fibra optica a 1310 nm (dB/km). */
+    private double atenuacao1310;
+
+    /** Perda por conector individual (dB). */
+    private double perdaPorConector;
+
+    /** Perda por fusao individual (dB). */
+    private double perdaPorFusao;
 
     /** Margem de seguranca do enlace (dB). */
     private double margem;
@@ -46,8 +57,10 @@ public class Equipamento {
      * <ul>
      *   <li>Potencia Tx: +3.0 dBm</li>
      *   <li>Sensibilidade: -28.0 dBm</li>
-     *   <li>Perda de insercao: 0.5 dB</li>
-     *   <li>Atenuacao da fibra: 0.35 dB/km</li>
+     *   <li>Atenuacao 1490 nm: 0.28 dB/km</li>
+     *   <li>Atenuacao 1310 nm: 0.35 dB/km</li>
+     *   <li>Perda por conector: 0.5 dB</li>
+     *   <li>Perda por fusao: 0.1 dB</li>
      *   <li>Margem: 3.0 dB</li>
      * </ul>
      */
@@ -55,74 +68,71 @@ public class Equipamento {
         this.potenciaTx = 3.0;
         this.sensibilidade = -28.0;
         this.perdaInsercao = 0.5;
-        this.atenuacaoFibra = 0.35;
+        this.atenuacao1490 = 0.28;
+        this.atenuacao1310 = 0.35;
+        this.perdaPorConector = 0.5;
+        this.perdaPorFusao = 0.1;
         this.margem = 3.0;
     }
 
     /**
      * Construtor parametrizado.
      * 
-     * @param potenciaTx     potencia de transmissao (dBm)
-     * @param sensibilidade  sensibilidade do receptor (dBm)
-     * @param perdaInsercao  perda por conectores (dB)
-     * @param atenuacaoFibra atenuacao da fibra (dB/km)
-     * @param margem         margem de seguranca (dB)
+     * @param potenciaTx       potencia de transmissao (dBm)
+     * @param sensibilidade    sensibilidade do receptor (dBm)
+     * @param perdaInsercao    perda por conectores (dB)
+     * @param atenuacao1490    atenuacao da fibra a 1490 nm (dB/km)
+     * @param atenuacao1310    atenuacao da fibra a 1310 nm (dB/km)
+     * @param perdaPorConector perda por conector individual (dB)
+     * @param perdaPorFusao    perda por fusao individual (dB)
+     * @param margem           margem de seguranca (dB)
      * @throws IllegalArgumentException se algum valor for invalido
      */
     public Equipamento(double potenciaTx, double sensibilidade, double perdaInsercao,
-                       double atenuacaoFibra, double margem) {
+                       double atenuacao1490, double atenuacao1310,
+                       double perdaPorConector, double perdaPorFusao, double margem) {
         setPotenciaTx(potenciaTx);
         setSensibilidade(sensibilidade);
         setPerdaInsercao(perdaInsercao);
-        setAtenuacaoFibra(atenuacaoFibra);
+        setAtenuacao1490(atenuacao1490);
+        setAtenuacao1310(atenuacao1310);
+        setPerdaPorConector(perdaPorConector);
+        setPerdaPorFusao(perdaPorFusao);
         setMargem(margem);
     }
 
     // ─── Getters ────────────────────────────────────────────────────────
 
-    /**
-     * @return potencia de transmissao (dBm)
-     */
-    public double getPotenciaTx() {
-        return potenciaTx;
-    }
+    public double getPotenciaTx() { return potenciaTx; }
+    public double getSensibilidade() { return sensibilidade; }
+    public double getPerdaInsercao() { return perdaInsercao; }
+
+    /** @return atenuacao da fibra a 1490 nm (dB/km) */
+    public double getAtenuacao1490() { return atenuacao1490; }
+
+    /** @return atenuacao da fibra a 1310 nm (dB/km) */
+    public double getAtenuacao1310() { return atenuacao1310; }
+
+    /** @return perda por conector individual (dB) */
+    public double getPerdaPorConector() { return perdaPorConector; }
+
+    /** @return perda por fusao individual (dB) */
+    public double getPerdaPorFusao() { return perdaPorFusao; }
+
+    /** @return margem de seguranca (dB) */
+    public double getMargem() { return margem; }
 
     /**
-     * @return sensibilidade do receptor (dBm)
+     * Retorna a atenuacao da fibra para o comprimento de onda especificado.
+     * @param nm comprimento de onda em nanometros (1490 ou 1310)
+     * @return atenuacao em dB/km
      */
-    public double getSensibilidade() {
-        return sensibilidade;
-    }
-
-    /**
-     * @return perda por insercao de conectores (dB)
-     */
-    public double getPerdaInsercao() {
-        return perdaInsercao;
-    }
-
-    /**
-     * @return coeficiente de atenuacao da fibra (dB/km)
-     */
-    public double getAtenuacaoFibra() {
-        return atenuacaoFibra;
-    }
-
-    /**
-     * @return margem de seguranca (dB)
-     */
-    public double getMargem() {
-        return margem;
+    public double getAtenuacaoFibra(int nm) {
+        return nm == 1310 ? atenuacao1310 : atenuacao1490;
     }
 
     // ─── Setters com validacao ──────────────────────────────────────────
 
-    /**
-     * Define a potencia de transmissao.
-     * 
-     * @param potenciaTx potencia em dBm (deve estar entre -50 e +50 dBm)
-     * @throws IllegalArgumentException se o valor estiver fora dos limites fisicos
-     */
     public void setPotenciaTx(double potenciaTx) {
         if (potenciaTx < -50 || potenciaTx > 50) {
             throw new IllegalArgumentException(
@@ -132,12 +142,6 @@ public class Equipamento {
         this.potenciaTx = potenciaTx;
     }
 
-    /**
-     * Define a sensibilidade do receptor.
-     * 
-     * @param sensibilidade sensibilidade em dBm (deve estar entre -50 e -10 dBm)
-     * @throws IllegalArgumentException se o valor estiver fora dos limites fisicos
-     */
     public void setSensibilidade(double sensibilidade) {
         if (sensibilidade < -50 || sensibilidade > -10) {
             throw new IllegalArgumentException(
@@ -147,12 +151,6 @@ public class Equipamento {
         this.sensibilidade = sensibilidade;
     }
 
-    /**
-     * Define a perda por insercao de conectores/fusoes.
-     * 
-     * @param perdaInsercao perda em dB (nao pode ser negativa)
-     * @throws IllegalArgumentException se o valor for negativo
-     */
     public void setPerdaInsercao(double perdaInsercao) {
         if (perdaInsercao < 0) {
             throw new IllegalArgumentException(
@@ -162,27 +160,42 @@ public class Equipamento {
         this.perdaInsercao = perdaInsercao;
     }
 
-    /**
-     * Define o coeficiente de atenuacao da fibra.
-     * 
-     * @param atenuacaoFibra atenuacao em dB/km (deve ser positiva e ≤ 10 dB/km)
-     * @throws IllegalArgumentException se o valor for invalido
-     */
-    public void setAtenuacaoFibra(double atenuacaoFibra) {
-        if (atenuacaoFibra <= 0 || atenuacaoFibra > 10) {
+    public void setAtenuacao1490(double atenuacao1490) {
+        if (atenuacao1490 <= 0 || atenuacao1490 > 10) {
             throw new IllegalArgumentException(
-                String.format("Atenuacao da fibra (%.2f dB/km) invalida. Deve ser positiva e ≤ 10 dB/km.", atenuacaoFibra)
+                String.format("Atenuacao 1490 nm (%.2f dB/km) invalida. Deve ser positiva e ≤ 10 dB/km.", atenuacao1490)
             );
         }
-        this.atenuacaoFibra = atenuacaoFibra;
+        this.atenuacao1490 = atenuacao1490;
     }
 
-    /**
-     * Define a margem de seguranca do enlace.
-     * 
-     * @param margem margem em dB (nao pode ser negativa)
-     * @throws IllegalArgumentException se o valor for negativo
-     */
+    public void setAtenuacao1310(double atenuacao1310) {
+        if (atenuacao1310 <= 0 || atenuacao1310 > 10) {
+            throw new IllegalArgumentException(
+                String.format("Atenuacao 1310 nm (%.2f dB/km) invalida. Deve ser positiva e ≤ 10 dB/km.", atenuacao1310)
+            );
+        }
+        this.atenuacao1310 = atenuacao1310;
+    }
+
+    public void setPerdaPorConector(double perdaPorConector) {
+        if (perdaPorConector < 0 || perdaPorConector > 5) {
+            throw new IllegalArgumentException(
+                String.format("Perda por conector (%.2f dB) invalida. Deve estar entre 0 e 5 dB.", perdaPorConector)
+            );
+        }
+        this.perdaPorConector = perdaPorConector;
+    }
+
+    public void setPerdaPorFusao(double perdaPorFusao) {
+        if (perdaPorFusao < 0 || perdaPorFusao > 2) {
+            throw new IllegalArgumentException(
+                String.format("Perda por fusao (%.2f dB) invalida. Deve estar entre 0 e 2 dB.", perdaPorFusao)
+            );
+        }
+        this.perdaPorFusao = perdaPorFusao;
+    }
+
     public void setMargem(double margem) {
         if (margem < 0) {
             throw new IllegalArgumentException(
@@ -192,16 +205,13 @@ public class Equipamento {
         this.margem = margem;
     }
 
-    /**
-     * Retorna uma representacao em string do equipamento com seus parametros.
-     * 
-     * @return string formatada com todos os atributos
-     */
     @Override
     public String toString() {
         return String.format(
-            "Equipamento{potenciaTx=%.2f dBm, sensibilidade=%.2f dBm, perdaInsercao=%.2f dB, atenuacaoFibra=%.2f dB/km, margem=%.2f dB}",
-            potenciaTx, sensibilidade, perdaInsercao, atenuacaoFibra, margem
+            "Equipamento{Ptx=%.2f dBm, S=%.2f dBm, alpha1490=%.2f, alpha1310=%.2f dB/km, "
+            + "perdaConector=%.2f dB, perdaFusao=%.2f dB, margem=%.2f dB}",
+            potenciaTx, sensibilidade, atenuacao1490, atenuacao1310,
+            perdaPorConector, perdaPorFusao, margem
         );
     }
 }

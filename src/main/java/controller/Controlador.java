@@ -1,6 +1,7 @@
 package controller;
 
 import model.LinkBudget;
+import model.Validador;
 import java.util.*;
 
 /**
@@ -9,23 +10,18 @@ import java.util.*;
  * acionar o {@link LinkBudget}, validar os resultados contra os padroes
  * ITU-T G.984/G.652 e retornar um {@link ResultadoCalculo} consolidado.
  * 
- * <p>Fluxo: UI → Controlador → LinkBudget.calcular() + validacao → UI</p>
- * 
- * <p>Quando a classe {@code Validador} estiver implementada (issue #2),
- * a validacao inline nos metodos {@code validar*} deve ser substituida
- * por chamadas ao Validador.</p>
+ * <p>Fluxo: UI → Controlador → LinkBudget.calcular() + Validador → UI</p>
  * 
  * @author Joao Victor Borges Carvalho
- * @version 1.0
+ * @version 1.1
  * @see LinkBudget
+ * @see Validador
  * @see ResultadoCalculo
  */
 public class Controlador {
 
     private final LinkBudget linkBudget;
-
-    // TODO: substituir por Validador quando disponivel (issue #2)
-    // private final Validador validador;
+    private final Validador validador;
 
     /** Limites ITU-T G.984 para validacao */
     private static final double PTX_MIN = 1.5;       // dBm
@@ -47,18 +43,19 @@ public class Controlador {
     }
 
     /**
-     * Cria um Controlador com uma nova instancia de {@link LinkBudget}.
+     * Cria um Controlador com novas instancias de {@link LinkBudget} e {@link Validador}.
      */
     public Controlador() {
         this.linkBudget = new LinkBudget();
+        this.validador = new Validador();
     }
 
     /**
-     * Cria um Controlador com uma instancia injetada de LinkBudget
-     * (util para testes).
+     * Cria um Controlador com instancias injetadas (util para testes).
      */
-    public Controlador(LinkBudget linkBudget) {
+    public Controlador(LinkBudget linkBudget, Validador validador) {
         this.linkBudget = linkBudget;
+        this.validador = validador;
     }
 
     /**
@@ -94,6 +91,7 @@ public class Controlador {
         List<String> alertas = new ArrayList<>();
         alertas.addAll(validarEntradas(parametros));
         alertas.addAll(validarResultado(variavelFaltante, valor));
+        alertas.addAll(validarAtenuacaoTotal(parametros, variavelFaltante, valor));
 
         // Se tudo OK, adiciona mensagem verde
         if (alertas.isEmpty()) {
@@ -140,10 +138,10 @@ public class Controlador {
         }
     }
 
-    // ─── Validacao inline (TODO: migrar para classe Validador) ──────────
+    // ─── Validacao via Validador ────────────────────────────────────────
 
     /**
-     * Valida os valores de entrada fornecidos pelo usuario.
+     * Valida os valores de entrada fornecidos pelo usuario usando o {@link Validador}.
      * Ignora a variavel que esta com valor {@code null} (a ser calculada).
      */
     private List<String> validarEntradas(Map<String, Double> parametros) {
@@ -152,30 +150,34 @@ public class Controlador {
         Double ptx = parametros.get("Ptx");
         Double s   = parametros.get("S");
         Double d   = parametros.get("d");
+        Double n   = parametros.get("N");
+        Double pcon = parametros.get("Pcon");
+        Double m   = parametros.get("M");
 
-        if (ptx != null && (ptx < PTX_MIN || ptx > PTX_MAX)) {
-            alertas.add(String.format(
-                "Potencia de transmissao (%.1f dBm) fora do padrao GPON (+%.1f a +%.1f dBm)",
-                ptx, PTX_MIN, PTX_MAX));
+        if (ptx != null) {
+            alertas.addAll(validador.validarPotenciaTx(ptx));
         }
-
-        if (s != null && s > S_MAX) {
-            alertas.add(String.format(
-                "Sensibilidade do receptor (%.1f dBm) acima do limite Classe B+ (%.1f dBm)",
-                s, S_MAX));
+        if (s != null) {
+            alertas.addAll(validador.validarSensibilidade(s));
         }
-
-        if (d != null && d > D_MAX) {
-            alertas.add(String.format(
-                "Distancia (%.1f km) excede o limite tipico GPON de %.0f km (Classe B+)",
-                d, D_MAX));
+        if (d != null) {
+            alertas.addAll(validador.validarDistancia(d));
+        }
+        if (n != null) {
+            alertas.addAll(validador.validarSplitter(n));
+        }
+        if (pcon != null) {
+            alertas.addAll(validador.validarPerdaConectores(pcon));
+        }
+        if (m != null) {
+            alertas.addAll(validador.validarMargem(m));
         }
 
         return alertas;
     }
 
     /**
-     * Valida o valor calculado contra os padroes ITU-T.
+     * Valida o valor calculado contra os padroes ITU-T usando o {@link Validador}.
      */
     private List<String> validarResultado(String variavel, double valor) {
         List<String> alertas = new ArrayList<>();
@@ -184,40 +186,50 @@ public class Controlador {
 
         switch (variavel) {
             case "Ptx":
-                if (valor < PTX_MIN || valor > PTX_MAX) {
-                    alertas.add(String.format(
-                        "Potencia de transmissao calculada (%.1f dBm) fora do padrao GPON (+%.1f a +%.1f dBm)",
-                        valor, PTX_MIN, PTX_MAX));
-                }
+                alertas.addAll(validador.validarPotenciaTx(valor));
                 break;
             case "S":
-                if (valor > S_MAX) {
-                    alertas.add(String.format(
-                        "Sensibilidade calculada (%.1f dBm) acima do limite Classe B+ (%.1f dBm)",
-                        valor, S_MAX));
-                }
+                alertas.addAll(validador.validarSensibilidade(valor));
                 break;
             case "d":
-                if (valor > D_MAX) {
-                    alertas.add(String.format(
-                        "Distancia calculada (%.1f km) excede o limite tipico de %.0f km",
-                        valor, D_MAX));
-                }
+                alertas.addAll(validador.validarDistancia(valor));
+                break;
+            case "N":
+                alertas.addAll(validador.validarSplitter(valor));
+                break;
+            case "Pcon":
+                alertas.addAll(validador.validarPerdaConectores(valor));
                 break;
             case "M":
-                if (valor < 0) {
-                    alertas.add(String.format(
-                        "Margem de seguranca negativa (%.1f dB) — o enlace e inviavel",
-                        valor));
-                }
+                alertas.addAll(validador.validarMargem(valor));
                 break;
         }
 
-        // Validacao de atenuacao total para qualquer calculo
-        // Ptx - S = atenuacao total
-        // So podemos verificar se temos ambos
-        // Como so uma variavel e calculada, nao temos o quadro completo aqui.
-        // Essa validacao sera feita pela GUI apos montar o cenario completo.
+        return alertas;
+    }
+
+    /**
+     * Valida a atenuacao total do enlace reconstruindo o cenario completo.
+     * 
+     * <p>Apos o calculo, temos todos os valores (a faltante foi preenchida).
+     * Reconstruimos o cenario para calcular Ptx - S e validar contra os
+     * limites de atenuacao da classe de operacao.</p>
+     */
+    private List<String> validarAtenuacaoTotal(Map<String, Double> parametros,
+                                                String variavelFaltante, double valor) {
+        List<String> alertas = new ArrayList<>();
+
+        // Reconstroi o cenario completo com o valor calculado
+        Map<String, Double> completo = new HashMap<>(parametros);
+        completo.put(variavelFaltante, valor);
+
+        Double ptx = completo.get("Ptx");
+        Double s = completo.get("S");
+
+        if (ptx != null && s != null) {
+            double atenuacaoTotal = ptx - s;
+            alertas.addAll(validador.validarAtenuacao(atenuacaoTotal, Validador.LIMITE_ATENUACAO_CPLUS));
+        }
 
         return alertas;
     }

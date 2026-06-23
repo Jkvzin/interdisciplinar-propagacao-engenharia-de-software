@@ -1,0 +1,86 @@
+Projeto GPON Interdisciplinar entre Propagação de Ondas
+
+e Engenharia de Software
+
+Este é um desafio de Engenharia de Software aplicado a um domínio técnico de
+Telecomunicações. O objetivo é desenvolver uma calculadora de forma a
+transformar as leis da física na propagação e perdas de sinal em uma lógica de
+software flexível, assim como o desenvolvimento de interface gráfica para o usuário da
+calculadora.
+Como exemplo de projeto de rede, o foco é na tecnologia GPON (Gigabit Passive
+Optical Network), no qual o exercício de calcular o equilíbrio entre a capacidade de
+transmissão óptica e os limites físicos impostos pela atenuação, tanto no downstream,
+quanto no upstream.
+O principal desafio de um projetista de rede GPON é garantir que o sinal saia da OLT
+(Central) e chegue à ONU (Cliente) com potência suficiente para ser interpretado,
+respeitando as perdas intrínsecas dos componentes passivos.
+A seguir é apresentado um roteiro de como estruturar esses requisitos e a lógica de
+propagação:
+1. Engenharia de Software: Estruturação
+Como o projeto exige que o programa "determine a variável faltante", a arquitetura não
+pode ser linear.
+Diagrama de Caso de Uso
+O foco é a interação, onde o "Ator" (Engenheiro/Usuário) deve ser capaz de:
+● Inserir Parâmetros: Potência (tx), Sensibilidade (S), Distância (d), número de
+splitters, conexões, etc.
+● Calcular Variável Faltante: o sistema identifica qual campo ficou vazio e
+aplica a fórmula isolando aquela variável.
+● Gerar Alertas: o sistema valida se os dados estão dentro dos padrões de
+mercado (como referência utilizar a atividade do GSA-PCS PRO 2026
+https://classroom.google.com/c/Nzk0MDI0OTU5NDA0/m/Nzk2NjgwMjE3MjE2/d
+etails:).
+Diagrama de Classes
+Para uma boa arquitetura, evite colocar tudo em uma única função. Sugestão de
+classes:
+● Classe LinkBudget: Responsável pelo cálculo matemático.
+● Classe Equipamento: Atributos como perdas características, potência de
+transmissão, sensibilidade, margem.
+● Classe Validador: Contém as regras para disparar alertas (ex: se a atenuação
+da fibra estiver fora das características práticas, potencias de transmissão,
+sensibilidade, etc, conforme conhecimentos adquiridos na disciplina de
+propagação de ondas eletromagnéticas).
+
+2. Propagação de Ondas
+Em redes PON, o cálculo base é o equilíbrio do enlace (Link Budget). A lógica
+computacional deve tratar a equação que lida com as variáveis características do
+projeto GPON como um sistema. Em função das variáveis fornecidas pelo usuário, a
+lógica de programação deve isolar a variável faltante :
+Diferente de redes ativas, a GPON utiliza Splitters (divisores de potência), que são os
+maiores responsáveis pela perda de sinal. Em um projeto, se deve considerar:
+● Perda por Distância: a fibra óptica (geralmente norma G.652) possui uma
+atenuação específica em dB/km, variando conforme o comprimento de onda.
+● Perda por Divisão: cada vez que o sinal é dividido (1:2, 1:8, 1:16, 1:64),
+ocorre uma perda logarítmica de pelo menos 3 dB a cada passo de divisão.
+● Conectores e Fusões: Cada ponto de conexão adiciona uma pequena perda
+● Sensibilidade e potência de transmissão conforme padrão ou equipamento
+utilizado
+● Margem de segurança
+
+3. Regras de Validação (Alertas)
+O programa via interface gráfica deve alertar sobre valores "fora do esperado". Uma
+forma de tratar este problema é implementar uma tabela de limites:
+Dicas para a Avaliação de Arquitetura
+1. Tratamento de Exceções: Se o usuário não preencher dados suficientes para
+fechar a conta, o software deve retornar um erro amigável, não travar.
+2. Interface de Usuário (UI): Mesmo que seja via terminal, organize a entrada de
+dados. Se for interface gráfica, use campos numéricos com validação em
+tempo real.
+3. Modularidade: Garanta que a lógica de cálculo de propagação esteja
+separada da lógica de exibição de dados (Padrão MVC ou similar).
+
+Resumo
+● Requisito Funcional 1: O sistema deve calcular qualquer variável da fórmula
+de Link Budget desde que as demais sejam fornecidas.
+● Requisito Funcional 2: O sistema deve validar entradas com base em
+padrões de normas técnicas (ex: ITU-T G.984).
+● Requisito Não Funcional: O diagrama de classes deve separar a interface de
+usuário da lógica matemática de propagação.
+
+
+
+requisitos obrigatórios:
+Documento de requisitos
+Diagrama de caso de uso
+Diagrama de classe (Atualizado de acordo com o código final)
+Projeto desenvolvido em uma linguagem orientada a objetos (de preferência em Java) com interface gráfica resolvendo o problema apresentado pelo Guilherme
+Testes automatizados (de preferencia testes de unidade utilizando JUnit)
