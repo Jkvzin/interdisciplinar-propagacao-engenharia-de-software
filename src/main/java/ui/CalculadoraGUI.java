@@ -5,661 +5,564 @@ import controller.ResultadoCalculo;
 import model.Equipamento;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.border.TitledBorder;
-import javax.swing.text.AbstractDocument;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DocumentFilter;
+import javax.swing.border.*;
+import javax.swing.text.*;
 import java.awt.*;
-import java.awt.event.ItemEvent;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 
 /**
- * Calculadora de Link Budget GPON com acessibilidade.
+ * Calculadora de Link Budget GPON com acessibilidade embutida.
  *
- * <p>Recursos de acessibilidade:</p>
- * <ul>
- *   <li>3 tamanhos de fonte (Normal / Grande / Enorme)</li>
- *   <li>Modo alto contraste (fundo escuro, texto claro)</li>
- *   <li>Nomes acessiveis para leitores de tela (NVDA, JAWS)</li>
- *   <li>Atalhos de teclado (Alt+letra nos campos)</li>
- *   <li>Tooltips descritivos em todos os campos</li>
- *   <li>Indicadores de foco visiveis (borda grossa colorida)</li>
- * </ul>
+ * <p>Layout em duas colunas com todas as secoes visiveis sem scroll.</p>
+ * <p>Botao de acessibilidade (⚙) abre dialogo com opcoes de
+ * fonte e alto contraste. Suporte a leitor de tela e navegacao
+ * completa por teclado (Alt+letra).</p>
  */
 public class CalculadoraGUI extends JFrame {
 
     private final Controlador controlador;
     private final Equipamento equipamento;
-    private final Map<String, JTextField> campos;
+    private final Map<String, JTextField> campos = new HashMap<>();
 
     // Componentes
-    private JComboBox<String> comboWavelength;
+    private JComboBox<String> comboWL;
     private JTextField campoAlpha;
-    private JComboBox<String> comboSplitter1;
-    private JCheckBox chkSplitter2;
-    private JComboBox<String> comboSplitter2;
-    private JTextField campoNumConectores, campoPerdaConector, campoNumFusoes, campoPerdaFusao;
+    private JComboBox<String> comboS1, comboS2;
+    private JCheckBox chkS2;
+    private JTextField campoNCon, campoPCon, campoNFus, campoPFus;
     private JLabel labelPconTotal;
     private JTextArea areaResultado, areaAlertas;
-    private JButton btnCalcular;
-    private JPanel painelPrincipal;
-    private JScrollPane scrollEntrada;
-    private final List<JComponent> todosComponentes = new ArrayList<>();
-    private final List<JLabel> todosLabels = new ArrayList<>();
-    private final List<JPanel> paineisSecao = new ArrayList<>();
+    private JButton btnCalcular, btnAcessibilidade;
 
-    // Estados
-    private int tamanhoFonte = 1; // 0=normal, 1=grande, 2=enorme
+    // Estado
+    private int nivelFonte = 1; // 0=normal 1=grande 2=enorme
     private boolean altoContraste = false;
+    private final List<JComponent> todosComp = new ArrayList<>();
+    private final List<JLabel> todosLabels = new ArrayList<>();
+    private final List<JPanel> secoes = new ArrayList<>();
+    private final List<JTextField> camposConectores = new ArrayList<>();
 
-    // Tamanhos de fonte por nivel
-    private static final int[] FONT_SIZES = {12, 18, 24};
-    private static final int[] FONT_TITLES = {13, 20, 26};
-    private static final int[] FONT_BOLD = {14, 22, 28};
-    private static final int[] FONT_BTN = {16, 24, 32};
+    private static final int[] FS = {12, 18, 24};
+    private static final int[] FT = {13, 20, 26};
+    private static final int[] FB = {14, 22, 28};
+    private static final int[] FBTN = {16, 24, 32};
 
-    // Cores
-    private static final Color BG_NORMAL = new Color(245, 245, 250);
-    private static final Color BG_DARK = new Color(30, 30, 35);
-    private static final Color FG_DARK = new Color(230, 230, 240);
-    private static final Color ACCENT = new Color(70, 130, 180);
-    private static final Color ACCENT_HC = new Color(255, 200, 50);
-    private static final Color RESULT_OK = new Color(180, 255, 180);
-    private static final Color RESULT_OK_DARK = new Color(40, 100, 40);
-    private static final Color RESULT_WARN = new Color(255, 255, 180);
-    private static final Color RESULT_WARN_DARK = new Color(100, 100, 40);
-    private static final Color ALERT_BG = new Color(255, 240, 230);
-    private static final Color ALERT_BG_DARK = new Color(60, 40, 30);
-
-    // Splitters
-    private static final String[] SPLITTER_LABELS = {"1:2","1:4","1:8","1:16","1:32","1:64"};
-    private static final double[] SPLITTER_VALUES = {2,4,8,16,32,64};
-    private static final String[] WL_LABELS = {"1490 nm (Downstream)","1310 nm (Upstream)"};
-    private static final int[] WL_VALUES = {1490, 1310};
+    private static final String[] SPLIT = {"1:2","1:4","1:8","1:16","1:32","1:64"};
+    private static final double[] SPLIT_V = {2,4,8,16,32,64};
+    private static final String[] WL = {"1490 nm (Downstream)","1310 nm (Upstream)"};
+    private static final int[] WL_V = {1490,1310};
 
     public CalculadoraGUI() {
-        this.controlador = new Controlador();
-        this.equipamento = new Equipamento();
-        this.campos = new HashMap<>();
-
-        setTitle("Calculadora de Link Budget — GPON");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(680, 820);
-        setMinimumSize(new Dimension(560, 700));
+        controlador = new Controlador();
+        equipamento = new Equipamento();
+        setTitle("Calculadora de Link Budget GPON");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(880, 720);
+        setMinimumSize(new Dimension(800, 650));
         setLocationRelativeTo(null);
-
-        construirInterface();
-        aplicarAcessibilidade();
+        construir();
+        aplicarTema();
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Construcao da interface
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════ CONSTRUCAO ═══════════════
 
-    private void construirInterface() {
-        painelPrincipal = new JPanel(new BorderLayout(6, 6));
-        painelPrincipal.setBorder(new EmptyBorder(8, 8, 8, 8));
+    private void construir() {
+        JPanel root = new JPanel(new BorderLayout(8, 8));
+        root.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // Barra de acessibilidade
-        painelPrincipal.add(criarBarraAcessibilidade(), BorderLayout.NORTH);
+        // Cabecalho: titulo + botao acessibilidade
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        JLabel titulo = new JLabel("Link Budget — GPON (ITU-T G.984.2 / G.652)");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        header.add(titulo, BorderLayout.WEST);
 
-        // Entrada com scroll
-        JPanel entrada = criarPainelEntrada();
-        scrollEntrada = new JScrollPane(entrada);
-        scrollEntrada.setBorder(null);
-        scrollEntrada.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollEntrada.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollEntrada.getVerticalScrollBar().setUnitIncrement(20);
-        painelPrincipal.add(scrollEntrada, BorderLayout.CENTER);
+        btnAcessibilidade = new JButton("⚙ Acessibilidade");
+        btnAcessibilidade.setToolTipText("Abrir opcoes de acessibilidade (tamanho da fonte, alto contraste)");
+        btnAcessibilidade.addActionListener(e -> abrirDialogoAcessibilidade());
+        acessivel(btnAcessibilidade, "Acessibilidade", "Abre dialogo com opcoes de fonte e contraste");
+        header.add(btnAcessibilidade, BorderLayout.EAST);
+        root.add(header, BorderLayout.NORTH);
 
-        // Sul: botao + resultado
-        JPanel sul = new JPanel(new BorderLayout(0, 4));
+        // Painel de entrada em 2 colunas
+        root.add(criarEntrada2Colunas(), BorderLayout.CENTER);
+
+        // Sul: botao calcular + resultado
+        JPanel sul = new JPanel(new BorderLayout(0, 6));
         sul.setOpaque(false);
 
+        btnCalcular = criarBotaoCalcular();
         JPanel pb = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 4));
         pb.setOpaque(false);
-        btnCalcular = criarBotao("Calcular", 'C', "Realiza o calculo do Link Budget (atalho: Ctrl+Enter)");
         pb.add(btnCalcular);
         sul.add(pb, BorderLayout.NORTH);
         sul.add(criarPainelSaida(), BorderLayout.CENTER);
-        painelPrincipal.add(sul, BorderLayout.SOUTH);
+        root.add(sul, BorderLayout.SOUTH);
 
-        // Bind Ctrl+Enter no root pane
+        // Tecla de atalho
         getRootPane().setDefaultButton(btnCalcular);
         getRootPane().registerKeyboardAction(e -> onCalcular(),
             KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
             JComponent.WHEN_IN_FOCUSED_WINDOW);
 
-        add(painelPrincipal);
+        add(root);
     }
 
-    private JPanel criarBarraAcessibilidade() {
-        JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
-        barra.setBorder(new EmptyBorder(2, 0, 4, 0));
+    private JPanel criarEntrada2Colunas() {
+        JPanel grid = new JPanel(new GridBagLayout());
+        GridBagConstraints g = new GridBagConstraints();
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.insets = new Insets(4, 8, 4, 8);
+        g.anchor = GridBagConstraints.NORTHWEST;
 
-        JButton btnFonte = criarBotaoPequeno("A-", "Diminuir fonte");
-        JButton btnFonteP = criarBotaoPequeno("A+", "Aumentar fonte");
-        JToggleButton btnContraste = new JToggleButton("◐ Alto Contraste");
-        btnContraste.setToolTipText("Alterna modo alto contraste (fundo escuro, texto claro)");
+        // Coluna esquerda
+        JPanel colEsq = new JPanel();
+        colEsq.setLayout(new BoxLayout(colEsq, BoxLayout.Y_AXIS));
+        colEsq.add(secao("Comprimento de Onda e Fibra", this::wlFibra));
+        colEsq.add(Box.createVerticalStrut(6));
+        colEsq.add(secao("Parametros do Enlace", this::paramsEnlace));
 
-        btnFonte.addActionListener(e -> { if (tamanhoFonte > 0) { tamanhoFonte--; aplicarAcessibilidade(); }});
-        btnFonteP.addActionListener(e -> { if (tamanhoFonte < 2) { tamanhoFonte++; aplicarAcessibilidade(); }});
-        btnContraste.addItemListener(e -> { altoContraste = e.getStateChange() == ItemEvent.SELECTED; aplicarAcessibilidade(); });
+        // Coluna direita
+        JPanel colDir = new JPanel();
+        colDir.setLayout(new BoxLayout(colDir, BoxLayout.Y_AXIS));
+        colDir.add(secao("Divisores Opticos (Splitters)", this::splitters));
+        colDir.add(Box.createVerticalStrut(6));
+        colDir.add(secao("Conectores e Fusoes", this::conectores));
+        colDir.add(Box.createVerticalStrut(6));
+        colDir.add(secao("Margem de Seguranca", this::margem));
 
-        barra.add(new JLabel("Acessibilidade:"));
-        barra.add(btnFonte);
-        barra.add(btnFonteP);
-        barra.add(btnContraste);
+        g.gridx=0; g.gridy=0; g.weightx=0.5; g.weighty=1;
+        grid.add(colEsq, g);
+        g.gridx=1; g.weightx=0.5;
+        grid.add(colDir, g);
 
-        todosComponentes.add(btnFonte);
-        todosComponentes.add(btnFonteP);
-        todosComponentes.add(btnContraste);
-        return barra;
+        return grid;
     }
 
-    private JPanel criarPainelEntrada() {
-        JPanel painel = new JPanel();
-        painel.setLayout(new BoxLayout(painel, BoxLayout.Y_AXIS));
-
-        painel.add(criarSecao("Comprimento de Onda e Fibra", this::povoarSecaoWavelength));
-        painel.add(Box.createVerticalStrut(6));
-        painel.add(criarSecao("Parametros do Enlace", this::povoarSecaoParametros));
-        painel.add(Box.createVerticalStrut(6));
-        painel.add(criarSecao("Divisores Opticos (Splitters)", this::povoarSecaoSplitters));
-        painel.add(Box.createVerticalStrut(6));
-        painel.add(criarSecao("Conectores e Fusoes", this::povoarSecaoConectores));
-        painel.add(Box.createVerticalStrut(6));
-        painel.add(criarSecao("Margem de Seguranca", this::povoarSecaoMargem));
-
-        return painel;
-    }
-
-    private JPanel criarSecao(String titulo, java.util.function.Consumer<JPanel> povoar) {
+    private JPanel secao(String titulo, java.util.function.Consumer<JPanel> fn) {
         JPanel p = new JPanel(new GridBagLayout());
         p.setBorder(new TitledBorder(titulo));
-        povoar.accept(p);
-        paineisSecao.add(p);
+        fn.accept(p);
+        secoes.add(p);
         return p;
     }
 
-    private void povoarSecaoWavelength(JPanel p) {
+    private void wlFibra(JPanel p) {
         GridBagConstraints g = gbc();
         g.gridy=0; g.gridx=0; g.weightx=0;
-        p.add(label("Comprimento de onda:", 'O', "Selecione 1490 nm (downstream) ou 1310 nm (upstream)"), g);
+        p.add(label("Comprimento de onda:", 'O'), g);
         g.gridx=1; g.weightx=1;
-        comboWavelength = new JComboBox<>(WL_LABELS);
-        comboWavelength.addItemListener(e -> { if (e.getStateChange()==ItemEvent.SELECTED) atualizarAlpha(); });
-        acessivel(comboWavelength, "Comprimento de onda", "1490 nm downstream ou 1310 nm upstream");
-        p.add(comboWavelength, g);
+        comboWL = combo(WL, 0, "Comprimento de onda", "1490 nm downstream ou 1310 nm upstream");
+        comboWL.addItemListener(e -> { if(e.getStateChange()==ItemEvent.SELECTED) attAlpha(); });
+        p.add(comboWL, g);
 
         g.gridy=1; g.gridx=0; g.weightx=0;
-        p.add(label("Atenuacao (dB/km):", 'A', "Coeficiente de atenuacao da fibra optica em dB por km"), g);
+        p.add(label("Atenuacao (dB/km):", 'A'), g);
         g.gridx=1; g.weightx=1;
         campoAlpha = campoDecimal(String.valueOf(equipamento.getAtenuacao1490()), "alpha",
-            "Atenuacao da fibra", "Valor em dB/km. G.652: 0.28 a 1490 nm, 0.35 a 1310 nm");
+            "Atenuacao da fibra", "G.652: 0.28 dB/km @1490nm, 0.35 dB/km @1310nm");
         p.add(campoAlpha, g);
     }
 
-    private void povoarSecaoParametros(JPanel p) {
+    private void paramsEnlace(JPanel p) {
         GridBagConstraints g = gbc();
-        adicionarCampo(p, g, 0, "Potencia de Transmissao (dBm):", 'P', "Ptx",
-            "Potencia de saida do transmissor optico. GPON tipico: +1.5 a +5 dBm");
-        adicionarCampo(p, g, 1, "Sensibilidade do Receptor (dBm):", 'S', "S",
-            "Sensibilidade minima do receptor. GPON Classe B+: -28 dBm");
-        adicionarCampo(p, g, 2, "Distancia (km):", 'D', "d",
-            "Comprimento total do enlace optico em quilometros");
+        addCampo(p, g, 0, "Potencia de Transmissao (dBm):", 'P', "Ptx", "OLT GPON: +1.5 a +5 dBm");
+        addCampo(p, g, 1, "Sensibilidade do Receptor (dBm):", 'S', "S", "ONU Classe B+: -28 dBm");
+        addCampo(p, g, 2, "Distancia do enlace (km):", 'D', "d", "Comprimento total do enlace optico");
     }
 
-    private void povoarSecaoSplitters(JPanel p) {
+    private void splitters(JPanel p) {
         GridBagConstraints g = gbc();
         g.gridy=0; g.gridx=0; g.weightx=0;
-        p.add(label("Splitter primario:", '1', "Razao de divisao do splitter optico principal"), g);
+        p.add(label("Splitter primario:", '1'), g);
         g.gridx=1; g.weightx=1;
-        comboSplitter1 = new JComboBox<>(SPLITTER_LABELS);
-        comboSplitter1.setSelectedIndex(3);
-        acessivel(comboSplitter1, "Splitter primario", "Razao de divisao do primeiro splitter optico");
-        p.add(comboSplitter1, g);
+        comboS1 = combo(SPLIT, 3, "Splitter primario", "Razao de divisao do primeiro splitter");
+        p.add(comboS1, g);
 
         g.gridy=1; g.gridx=0; g.gridwidth=2;
-        chkSplitter2 = new JCheckBox("Adicionar splitter secundario");
-        chkSplitter2.setMnemonic('2');
-        chkSplitter2.setToolTipText("Marque para habilitar um segundo splitter em cascata");
-        chkSplitter2.addItemListener(e -> comboSplitter2.setEnabled(e.getStateChange()==ItemEvent.SELECTED));
-        acessivel(chkSplitter2, "Splitter secundario", "Habilita ou desabilita o segundo splitter optico");
-        p.add(chkSplitter2, g);
+        chkS2 = new JCheckBox("Adicionar splitter secundario");
+        chkS2.setMnemonic('2');
+        chkS2.setToolTipText("Habilita segundo splitter em cascata");
+        chkS2.addItemListener(e -> comboS2.setEnabled(e.getStateChange()==ItemEvent.SELECTED));
+        acessivel(chkS2, "Splitter secundario", "Habilita splitter adicional");
+        p.add(chkS2, g);
         g.gridwidth=1;
 
         g.gridy=2; g.gridx=0; g.weightx=0;
-        p.add(label("Splitter secundario:", '3', "Razao de divisao do segundo splitter (se habilitado)"), g);
+        p.add(label("Splitter secundario:", '3'), g);
         g.gridx=1; g.weightx=1;
-        comboSplitter2 = new JComboBox<>(SPLITTER_LABELS);
-        comboSplitter2.setSelectedIndex(1);
-        comboSplitter2.setEnabled(false);
-        acessivel(comboSplitter2, "Splitter secundario", "Razao de divisao do segundo splitter optico");
-        p.add(comboSplitter2, g);
+        comboS2 = combo(SPLIT, 1, "Splitter secundario", "Segundo splitter em cascata");
+        comboS2.setEnabled(false);
+        p.add(comboS2, g);
     }
 
-    private void povoarSecaoConectores(JPanel p) {
+    private void conectores(JPanel p) {
         GridBagConstraints g = gbc();
-
+        // Linha 0: conectores
         g.gridy=0; g.gridx=0; g.weightx=0;
-        p.add(label("Nº conectores:", 'C', "Quantidade de conectores no enlace"), g);
-        g.gridx=1; g.weightx=0.3;
-        campoNumConectores = campoInteiro("2", "Numero de conectores", "Quantos conectores opticos existem no enlace");
-        p.add(campoNumConectores, g);
-
+        p.add(label("Nº conectores:", 'C'), g);
+        g.gridx=1; g.weightx=0.4;
+        campoNCon = campoInt("2", "Numero de conectores", "Quantidade de conectores no enlace");
+        p.add(campoNCon, g);
         g.gridx=2; g.weightx=0;
-        p.add(label(" Perda/conector (dB):", 'E', "Perda por conector individual em dB"), g);
-        g.gridx=3; g.weightx=0.3;
-        campoPerdaConector = campoDecimal(String.valueOf(equipamento.getPerdaPorConector()), null,
-            "Perda por conector", "Perda tipica: 0.5 dB por conector SC/APC");
-        p.add(campoPerdaConector, g);
+        p.add(label(" Perda (dB):", 'E'), g);
+        g.gridx=3; g.weightx=0.4;
+        campoPCon = campoDecimal(String.valueOf(equipamento.getPerdaPorConector()), null,
+            "Perda por conector", "Tipico: 0.5 dB (SC/APC)");
+        p.add(campoPCon, g);
 
+        // Linha 1: fusoes
         g.gridy=1; g.gridx=0; g.weightx=0;
-        p.add(label("Nº fusoes:", 'F', "Quantidade de emendas por fusao no enlace"), g);
-        g.gridx=1; g.weightx=0.3;
-        campoNumFusoes = campoInteiro("4", "Numero de fusoes", "Quantas emendas por fusao existem no enlace");
-        p.add(campoNumFusoes, g);
-
+        p.add(label("Nº fusoes:", 'F'), g);
+        g.gridx=1; g.weightx=0.4;
+        campoNFus = campoInt("4", "Numero de fusoes", "Quantidade de emendas por fusao");
+        p.add(campoNFus, g);
         g.gridx=2; g.weightx=0;
-        p.add(label(" Perda/fusao (dB):", 'U', "Perda por fusao individual em dB"), g);
-        g.gridx=3; g.weightx=0.3;
-        campoPerdaFusao = campoDecimal(String.valueOf(equipamento.getPerdaPorFusao()), null,
-            "Perda por fusao", "Perda tipica: 0.05 a 0.1 dB por fusao");
-        p.add(campoPerdaFusao, g);
+        p.add(label(" Perda (dB):", 'U'), g);
+        g.gridx=3; g.weightx=0.4;
+        campoPFus = campoDecimal(String.valueOf(equipamento.getPerdaPorFusao()), null,
+            "Perda por fusao", "Tipico: 0.05 a 0.1 dB");
+        p.add(campoPFus, g);
 
+        // Total
         g.gridy=2; g.gridx=0; g.gridwidth=4; g.weightx=1;
         labelPconTotal = new JLabel("Perda total: 1.4 dB");
-        labelPconTotal.setToolTipText("Perda total = conectores × perda/conector + fusoes × perda/fusao");
+        labelPconTotal.setToolTipText("Total = conectores × perda/conector + fusoes × perda/fusao");
         p.add(labelPconTotal, g);
     }
 
-    private void povoarSecaoMargem(JPanel p) {
+    private void margem(JPanel p) {
         GridBagConstraints g = gbc();
-        adicionarCampo(p, g, 0, "Margem de Seguranca (dB):", 'M', "M",
-            "Margem para variacoes de temperatura, envelhecimento e reparos. Minimo recomendado: 3 dB");
+        addCampo(p, g, 0, "Margem de Seguranca (dB):", 'M', "M",
+            "Folga para variacoes ambientais. Minimo recomendado: 3 dB");
         campos.get("M").setText(String.valueOf(equipamento.getMargem()));
     }
 
     private JPanel criarPainelSaida() {
-        JPanel painel = new JPanel(new BorderLayout());
+        JPanel p = new JPanel(new BorderLayout(5, 5));
+        p.setOpaque(false);
 
-        areaResultado = new JTextArea(2, 40);
-        areaResultado.setEditable(false);
-        areaResultado.setLineWrap(true);
-        areaResultado.setWrapStyleWord(true);
-        areaResultado.setBorder(BorderFactory.createCompoundBorder(
-            new TitledBorder("Resultado"), new EmptyBorder(6, 10, 6, 10)));
-        acessivel(areaResultado, "Resultado do calculo", "Mostra o valor calculado da variavel");
+        areaResultado = areaTexto(2, "Resultado", "Valor calculado da variavel");
+        areaAlertas = areaTexto(5, "Alertas", "Alertas de validacao ITU-T");
 
-        areaAlertas = new JTextArea(5, 40);
-        areaAlertas.setEditable(false);
-        areaAlertas.setLineWrap(true);
-        areaAlertas.setWrapStyleWord(true);
-        areaAlertas.setBorder(BorderFactory.createCompoundBorder(
-            new TitledBorder("Alertas / Avisos"), new EmptyBorder(6, 10, 6, 10)));
-        acessivel(areaAlertas, "Alertas e avisos", "Lista de alertas de validacao ITU-T");
+        JScrollPane sp = new JScrollPane(areaAlertas);
+        sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        sp.setPreferredSize(new Dimension(800, 100));
 
-        JScrollPane scrollAlertas = new JScrollPane(areaAlertas);
-        scrollAlertas.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollAlertas.setPreferredSize(new Dimension(600, 110));
-
-        JPanel pr = new JPanel(new BorderLayout(5, 5));
-        pr.setOpaque(false);
-        pr.add(areaResultado, BorderLayout.NORTH);
-        pr.add(scrollAlertas, BorderLayout.CENTER);
-        painel.add(pr, BorderLayout.CENTER);
-        return painel;
+        p.add(areaResultado, BorderLayout.NORTH);
+        p.add(sp, BorderLayout.CENTER);
+        return p;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Acessibilidade
-    // ═══════════════════════════════════════════════════════════════
+    private JTextArea areaTexto(int rows, String titulo, String desc) {
+        JTextArea ta = new JTextArea(rows, 60);
+        ta.setEditable(false);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        ta.setBorder(BorderFactory.createCompoundBorder(
+            new TitledBorder(titulo), new EmptyBorder(6, 10, 6, 10)));
+        acessivel(ta, titulo, desc);
+        return ta;
+    }
 
-    private void aplicarAcessibilidade() {
-        int fs = FONT_SIZES[tamanhoFonte];
-        int ft = FONT_TITLES[tamanhoFonte];
-        int fb = FONT_BOLD[tamanhoFonte];
-        int fbtn = FONT_BTN[tamanhoFonte];
+    private JButton criarBotaoCalcular() {
+        JButton b = new JButton("Calcular Link Budget");
+        b.setMnemonic('L');
+        b.setToolTipText("Calcula a variavel em branco (atalho: Ctrl+Enter)");
+        b.setFocusPainted(true);
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setContentAreaFilled(true);
+        b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        b.addActionListener(e -> onCalcular());
+        acessivel(b, "Calcular", "Executa o calculo do Link Budget");
+        return b;
+    }
 
-        Font fontPlain  = new Font("Segoe UI", Font.PLAIN, fs);
-        Font fontBold   = new Font("Segoe UI", Font.BOLD, fb);
-        Font fontTitle  = new Font("Segoe UI", Font.BOLD, ft);
-        Font fontButton = new Font("Segoe UI", Font.BOLD, fbtn);
+    // ═══════════════ DIALOGO ACESSIBILIDADE ═══════════════
 
-        // Cores de fundo/texto
-        Color bg = altoContraste ? BG_DARK : BG_NORMAL;
-        Color fg = altoContraste ? FG_DARK : Color.BLACK;
-        Color accent = altoContraste ? ACCENT_HC : ACCENT;
-        Color resultOk = altoContraste ? RESULT_OK_DARK : RESULT_OK;
-        Color resultWarn = altoContraste ? RESULT_WARN_DARK : RESULT_WARN;
-        Color alertBg = altoContraste ? ALERT_BG_DARK : ALERT_BG;
+    private void abrirDialogoAcessibilidade() {
+        JDialog dlg = new JDialog(this, "Acessibilidade", true);
+        dlg.setLayout(new BorderLayout(10, 10));
+        dlg.getContentPane().setBackground(SystemColor.control);
 
-        painelPrincipal.setBackground(bg);
+        JPanel conteudo = new JPanel(new GridBagLayout());
+        conteudo.setBorder(new EmptyBorder(15, 15, 15, 15));
+        GridBagConstraints g = new GridBagConstraints();
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.insets = new Insets(8, 5, 8, 5);
 
-        // Aplica em todos os labels
-        for (JLabel lb : todosLabels) {
-            lb.setFont(fontPlain);
-            lb.setForeground(fg);
+        // Tamanho da fonte
+        g.gridy=0; g.gridx=0; g.gridwidth=3;
+        conteudo.add(new JLabel("Tamanho da fonte:"), g);
+        g.gridwidth=1;
+
+        JRadioButton rbNormal = new JRadioButton("Normal (12pt)");
+        JRadioButton rbGrande = new JRadioButton("Grande (18pt)");
+        JRadioButton rbEnorme = new JRadioButton("Enorme (24pt)");
+        ButtonGroup grupo = new ButtonGroup();
+        grupo.add(rbNormal); grupo.add(rbGrande); grupo.add(rbEnorme);
+        switch (nivelFonte) {
+            case 0: rbNormal.setSelected(true); break;
+            case 1: rbGrande.setSelected(true); break;
+            case 2: rbEnorme.setSelected(true); break;
         }
 
-        // Aplica em componentes
-        for (JComponent c : todosComponentes) {
-            c.setFont(fontPlain);
-            c.setForeground(fg);
-            if (c instanceof JButton && c != btnCalcular) {
-                c.setFont(fontPlain);
-            }
-        }
+        g.gridy=1; g.gridx=0; conteudo.add(rbNormal, g);
+        g.gridx=1; conteudo.add(rbGrande, g);
+        g.gridx=2; conteudo.add(rbEnorme, g);
 
-        // Campos de texto
+        // Alto contraste
+        g.gridy=2; g.gridx=0; g.gridwidth=3;
+        JCheckBox chkContraste = new JCheckBox("Modo alto contraste (fundo escuro, texto claro)");
+        chkContraste.setSelected(altoContraste);
+        conteudo.add(chkContraste, g);
+
+        // Botoes
+        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnOk = new JButton("Aplicar");
+        JButton btnCancel = new JButton("Cancelar");
+        btnOk.addActionListener(e -> {
+            if (rbNormal.isSelected()) nivelFonte = 0;
+            else if (rbGrande.isSelected()) nivelFonte = 1;
+            else nivelFonte = 2;
+            altoContraste = chkContraste.isSelected();
+            aplicarTema();
+            dlg.dispose();
+        });
+        btnCancel.addActionListener(e -> dlg.dispose());
+        botoes.add(btnOk);
+        botoes.add(btnCancel);
+
+        dlg.add(conteudo, BorderLayout.CENTER);
+        dlg.add(botoes, BorderLayout.SOUTH);
+        dlg.pack();
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
+    }
+
+    // ═══════════════ TEMA ═══════════════
+
+    private void aplicarTema() {
+        int fs = FS[nivelFonte], ft = FT[nivelFonte], fb = FB[nivelFonte], fbtn = FBTN[nivelFonte];
+        Font fp = new Font("Segoe UI", Font.PLAIN, fs);
+        Font fbold = new Font("Segoe UI", Font.BOLD, fb);
+        Font ftitle = new Font("Segoe UI", Font.BOLD, ft);
+        Font fbutton = new Font("Segoe UI", Font.BOLD, fbtn);
+
+        Color bg = altoContraste ? new Color(30,30,35) : new Color(245,245,250);
+        Color fg = altoContraste ? new Color(230,230,240) : Color.BLACK;
+        Color fieldBg = altoContraste ? new Color(50,50,55) : Color.WHITE;
+        Color btnCalcBg = altoContraste ? new Color(255,180,0) : new Color(0,120,50);
+        Color btnCalcFg = altoContraste ? Color.BLACK : Color.WHITE;
+        Color accent = altoContraste ? new Color(255,200,50) : new Color(0,100,50);
+        Color resOk = altoContraste ? new Color(40,100,40) : new Color(200,250,200);
+        Color resWarn = altoContraste ? new Color(100,100,40) : new Color(255,255,180);
+        Color alertBg = altoContraste ? new Color(60,40,30) : new Color(255,245,230);
+
+        for (JLabel lb : todosLabels) { lb.setFont(fp); lb.setForeground(fg); }
+
         for (JTextField tf : campos.values()) {
-            tf.setFont(fontPlain);
-            tf.setForeground(fg);
-            tf.setBackground(altoContraste ? new Color(50,50,55) : Color.WHITE);
-            tf.setCaretColor(fg);
+            tf.setFont(fp); tf.setForeground(fg); tf.setBackground(fieldBg); tf.setCaretColor(fg);
         }
-
-        // Campos extras
-        if (campoAlpha != null) {
-            campoAlpha.setFont(fontPlain); campoAlpha.setForeground(fg);
-            campoAlpha.setBackground(altoContraste ? new Color(50,50,55) : Color.WHITE);
-            campoAlpha.setCaretColor(fg);
+        for (JTextField tf : new JTextField[]{campoAlpha, campoNCon, campoPCon, campoNFus, campoPFus}) {
+            if (tf != null) { tf.setFont(fp); tf.setForeground(fg); tf.setBackground(fieldBg); tf.setCaretColor(fg); }
         }
-        for (JTextField tf : new JTextField[]{campoNumConectores, campoPerdaConector, campoNumFusoes, campoPerdaFusao}) {
-            if (tf != null) { tf.setFont(fontPlain); tf.setForeground(fg);
-                tf.setBackground(altoContraste ? new Color(50,50,55) : Color.WHITE); tf.setCaretColor(fg); }
+        for (JComboBox<?> cb : new JComboBox[]{comboWL, comboS1, comboS2}) {
+            if (cb != null) { cb.setFont(fp); cb.setForeground(fg); cb.setBackground(fieldBg); }
         }
+        if (chkS2 != null) { chkS2.setFont(fp); chkS2.setForeground(fg); }
 
-        // Combos
-        for (JComboBox<?> cb : new JComboBox[]{comboWavelength, comboSplitter1, comboSplitter2}) {
-            if (cb != null) { cb.setFont(fontPlain); cb.setForeground(fg);
-                cb.setBackground(altoContraste ? new Color(60,60,65) : Color.WHITE); }
-        }
-        if (chkSplitter2 != null) { chkSplitter2.setFont(fontPlain); chkSplitter2.setForeground(fg); }
+        for (JComponent c : todosComp) c.setFont(fp);
 
-        // Areas de texto
-        for (JTextArea ta : new JTextArea[]{areaResultado, areaAlertas}) {
-            if (ta != null) { ta.setFont(fontBold); }
-        }
-        if (areaResultado != null) areaResultado.setBackground(resultOk);
-        if (areaAlertas != null) areaAlertas.setBackground(alertBg);
+        btnCalcular.setFont(fbutton);
+        btnCalcular.setBackground(btnCalcBg);
+        btnCalcular.setForeground(btnCalcFg);
+        btnCalcular.setBorder(new LineBorder(btnCalcBg.darker(), 2));
+        btnCalcular.setPreferredSize(new Dimension(280, 40 + nivelFonte*12));
 
-        // Botao calcular
-        btnCalcular.setFont(fontButton);
-        btnCalcular.setBackground(accent);
-        btnCalcular.setForeground(altoContraste ? Color.BLACK : Color.WHITE);
-        btnCalcular.setBorder(new LineBorder(accent, altoContraste ? 3 : 1));
+        btnAcessibilidade.setFont(fp);
+        btnAcessibilidade.setForeground(fg);
 
-        // Label Pcon
-        if (labelPconTotal != null) {
-            labelPconTotal.setFont(fontBold);
-            labelPconTotal.setForeground(accent);
-        }
+        if (labelPconTotal != null) { labelPconTotal.setFont(fbold); labelPconTotal.setForeground(accent); }
 
-        // Paineis de secao
-        for (JPanel sec : paineisSecao) {
+        areaResultado.setFont(fbold);
+        areaResultado.setBackground(resOk);
+        areaResultado.setForeground(altoContraste ? Color.WHITE : Color.BLACK);
+
+        areaAlertas.setFont(fp);
+        areaAlertas.setBackground(alertBg);
+        areaAlertas.setForeground(altoContraste ? Color.WHITE : Color.BLACK);
+
+        for (JPanel sec : secoes) {
             sec.setBackground(bg);
             if (sec.getBorder() instanceof TitledBorder tb) {
-                tb.setTitleFont(fontTitle);
+                tb.setTitleFont(ftitle);
                 tb.setTitleColor(accent);
             }
         }
 
-        // Scroll
-        if (scrollEntrada != null) {
-            scrollEntrada.getViewport().getView().setBackground(bg);
-        }
-
-        // Foco visivel
-        KeyboardFocusManager.getCurrentKeyboardFocusManager().addPropertyChangeListener("permanentFocusOwner", evt -> {
-            Component foco = (Component) evt.getNewValue();
-            if (foco instanceof JTextField tf) {
-                tf.setBorder(new LineBorder(accent, altoContraste ? 3 : 2));
-            }
-        });
-
-        // Revalida layout
-        painelPrincipal.revalidate();
-        painelPrincipal.repaint();
-
-        // Atualiza tamanho da janela
-        int w = 640 + tamanhoFonte * 60;
-        int h = 780 + tamanhoFonte * 80;
-        setSize(w, h);
+        getContentPane().setBackground(bg);
+        revalidate();
+        repaint();
     }
 
-    private void acessivel(JComponent c, String nome, String descricao) {
-        c.getAccessibleContext().setAccessibleName(nome);
-        c.getAccessibleContext().setAccessibleDescription(descricao);
-        c.setToolTipText(descricao);
-        todosComponentes.add(c);
-    }
-
-    private JLabel label(String texto, char mnemonic, String tooltip) {
-        JLabel lb = new JLabel(texto);
-        lb.setDisplayedMnemonic(mnemonic);
-        lb.setToolTipText(tooltip + " (Alt+" + mnemonic + ")");
-        lb.getAccessibleContext().setAccessibleName(texto);
-        lb.getAccessibleContext().setAccessibleDescription(tooltip);
-        todosLabels.add(lb);
-        return lb;
-    }
-
-    private JButton criarBotao(String texto, char mnemonic, String tooltip) {
-        JButton b = new JButton(texto);
-        b.setMnemonic(mnemonic);
-        b.setToolTipText(tooltip);
-        b.setFocusPainted(true);
-        b.setOpaque(true);
-        b.setContentAreaFilled(true);
-        b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        b.addActionListener(e -> onCalcular());
-        acessivel(b, texto, tooltip);
-        return b;
-    }
-
-    private JButton criarBotaoPequeno(String texto, String tooltip) {
-        JButton b = new JButton(texto);
-        b.setToolTipText(tooltip);
-        b.setFocusPainted(true);
-        b.getAccessibleContext().setAccessibleName(texto);
-        b.getAccessibleContext().setAccessibleDescription(tooltip);
-        todosComponentes.add(b);
-        return b;
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════ HELPERS ═══════════════
 
     private GridBagConstraints gbc() {
         GridBagConstraints g = new GridBagConstraints();
         g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(3, 6, 3, 6);
+        g.insets = new Insets(3, 5, 3, 5);
         return g;
     }
 
-    private void adicionarCampo(JPanel p, GridBagConstraints g, int linha, String rotulo, char mn, String chave, String tooltip) {
-        g.gridy = linha; g.gridx = 0; g.weightx = 0;
-        JLabel lb = label(rotulo, mn, tooltip);
-        p.add(lb, g);
-        // Associar label ao campo via mnemonic
-        g.gridx = 1; g.weightx = 1;
-        JTextField tf = campoDecimal("", chave, rotulo, tooltip);
-        lb.setLabelFor(tf);
-        p.add(tf, g);
+    private JLabel label(String texto, char mn) {
+        JLabel lb = new JLabel(texto);
+        lb.setDisplayedMnemonic(mn);
+        todosLabels.add(lb);
+        return lb;
     }
 
-    private JTextField campoDecimal(String valor, String chave, String nome, String tooltip) {
-        JTextField tf = new JTextField(valor, 12);
+    private JComboBox<String> combo(String[] itens, int sel, String nome, String desc) {
+        JComboBox<String> cb = new JComboBox<>(itens);
+        cb.setSelectedIndex(sel);
+        acessivel(cb, nome, desc);
+        return cb;
+    }
+
+    private JTextField campoDecimal(String valor, String chave, String nome, String desc) {
+        JTextField tf = new JTextField(valor, 10);
         tf.setHorizontalAlignment(JTextField.RIGHT);
-        ((AbstractDocument) tf.getDocument()).setDocumentFilter(new FiltroNumerico());
-        acessivel(tf, nome, tooltip);
+        ((AbstractDocument)tf.getDocument()).setDocumentFilter(new FiltroNumerico());
+        acessivel(tf, nome, desc);
         if (chave != null) campos.put(chave, tf);
         return tf;
     }
 
-    private JTextField campoInteiro(String valor, String nome, String tooltip) {
+    private JTextField campoInt(String valor, String nome, String desc) {
         JTextField tf = new JTextField(valor, 5);
         tf.setHorizontalAlignment(JTextField.RIGHT);
-        ((AbstractDocument) tf.getDocument()).setDocumentFilter(new FiltroInteiro());
-        tf.getDocument().addDocumentListener(new DocListener(this::atualizarPconTotal));
-        acessivel(tf, nome, tooltip);
+        ((AbstractDocument)tf.getDocument()).setDocumentFilter(new FiltroInteiro());
+        tf.getDocument().addDocumentListener(new DocListener(this::attPconTotal));
+        camposConectores.add(tf);
+        acessivel(tf, nome, desc);
         return tf;
     }
 
-    private void atualizarAlpha() {
-        int i = comboWavelength.getSelectedIndex();
-        if (i >= 0 && i < WL_VALUES.length)
-            campoAlpha.setText(String.valueOf(equipamento.getAtenuacaoFibra(WL_VALUES[i])));
+    private void addCampo(JPanel p, GridBagConstraints g, int lin, String txt, char mn, String ch, String tip) {
+        g.gridy=lin; g.gridx=0; g.weightx=0;
+        JLabel lb = label(txt, mn);
+        lb.setToolTipText(tip + " (Alt+"+mn+")");
+        p.add(lb, g);
+        g.gridx=1; g.weightx=1;
+        JTextField tf = campoDecimal("", ch, txt, tip);
+        lb.setLabelFor(tf);
+        p.add(tf, g);
     }
 
-    private void atualizarPconTotal() {
-        int nc = parseInt(campoNumConectores.getText());
-        double pc = parseDouble(campoPerdaConector.getText(), equipamento.getPerdaPorConector());
-        int nf = parseInt(campoNumFusoes.getText());
-        double pf = parseDouble(campoPerdaFusao.getText(), equipamento.getPerdaPorFusao());
+    private void acessivel(JComponent c, String nome, String desc) {
+        c.getAccessibleContext().setAccessibleName(nome);
+        c.getAccessibleContext().setAccessibleDescription(desc);
+        c.setToolTipText(desc);
+        todosComp.add(c);
+    }
+
+    private void attAlpha() {
+        int i = comboWL.getSelectedIndex();
+        if (i>=0 && i<WL_V.length) campoAlpha.setText(String.valueOf(equipamento.getAtenuacaoFibra(WL_V[i])));
+    }
+
+    private void attPconTotal() {
+        int nc = parseInt(campoNCon.getText());
+        double pc = parseDouble(campoPCon.getText(), equipamento.getPerdaPorConector());
+        int nf = parseInt(campoNFus.getText());
+        double pf = parseDouble(campoPFus.getText(), equipamento.getPerdaPorFusao());
         double t = nc*pc + nf*pf;
-        labelPconTotal.setText(String.format("Perda total: %.2f dB  (%d con. × %.1f + %d fus. × %.1f)", t, nc, pc, nf, pf));
+        labelPconTotal.setText(String.format("Perda total: %.2f dB  (%d c.×%.1f + %d f.×%.1f)", t, nc, pc, nf, pf));
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Logica de calculo
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════ CALCULO ═══════════════
 
     private void onCalcular() {
         areaResultado.setText(""); areaAlertas.setText("");
+        Map<String,String> tc = new LinkedHashMap<>();
+        tc.put("Ptx",campos.get("Ptx").getText().trim());
+        tc.put("S",campos.get("S").getText().trim());
+        tc.put("d",campos.get("d").getText().trim());
+        tc.put("M",campos.get("M").getText().trim());
+        tc.put("alpha",campoAlpha.getText().trim());
+        tc.put("Pcon",String.valueOf(calcPcon()));
+        tc.put("N",String.valueOf(calcN()));
 
-        Map<String, String> tc = new LinkedHashMap<>();
-        tc.put("Ptx", campos.get("Ptx").getText().trim());
-        tc.put("S", campos.get("S").getText().trim());
-        tc.put("d", campos.get("d").getText().trim());
-        tc.put("M", campos.get("M").getText().trim());
-        tc.put("alpha", campoAlpha.getText().trim());
-        tc.put("Pcon", String.valueOf(calcPcon()));
-        tc.put("N", String.valueOf(calcN()));
-
-        Map<String, Double> p = new HashMap<>();
-        int vazios = 0;
-        for (var e : tc.entrySet()) {
-            if (e.getValue().isEmpty()) { p.put(e.getKey(), null); vazios++; }
-            else { try { p.put(e.getKey(), Double.parseDouble(e.getValue())); }
-                   catch (NumberFormatException ex) { mostrarErro("Valor invalido em " + nomeCampo(e.getKey()) + ": " + e.getValue()); return; } }
+        Map<String,Double> p = new HashMap<>(); int v=0;
+        for (var e:tc.entrySet()) {
+            if (e.getValue().isEmpty()){p.put(e.getKey(),null);v++;}
+            else try{p.put(e.getKey(),Double.parseDouble(e.getValue()));}
+            catch(NumberFormatException ex){err("Valor invalido: "+nome(e.getKey())+" = "+e.getValue());return;}
         }
-
-        if (vazios == 0) { mostrarErro("Deixe exatamente um campo em branco para calcular."); return; }
-        if (vazios > 1) { mostrarErro(vazios + " campos vazios. Deixe apenas UM em branco."); return; }
-
-        try { exibirResultado(controlador.processarCalculo(p)); }
-        catch (Exception e) { mostrarErro("Erro: " + e.getMessage()); }
+        if (v==0){err("Deixe exatamente UM campo em branco.");return;}
+        if (v>1){err(v+" campos vazios. Deixe apenas UM.");return;}
+        try{exibir(controlador.processarCalculo(p));}catch(Exception e){err("Erro: "+e.getMessage());}
     }
 
-    private double calcPcon() {
-        return parseInt(campoNumConectores.getText()) * parseDouble(campoPerdaConector.getText(), equipamento.getPerdaPorConector())
-             + parseInt(campoNumFusoes.getText())     * parseDouble(campoPerdaFusao.getText(), equipamento.getPerdaPorFusao());
-    }
-    private double calcN() {
-        double n1 = getSplitter(comboSplitter1);
-        double n2 = chkSplitter2.isSelected() ? getSplitter(comboSplitter2) : 1.0;
-        return n1 * n2;
-    }
-    private double getSplitter(JComboBox<String> cb) { int i = cb.getSelectedIndex(); return (i>=0 && i<SPLITTER_VALUES.length) ? SPLITTER_VALUES[i] : 16; }
+    private double calcPcon(){return parseInt(campoNCon.getText())*parseDouble(campoPCon.getText(),equipamento.getPerdaPorConector())+parseInt(campoNFus.getText())*parseDouble(campoPFus.getText(),equipamento.getPerdaPorFusao());}
+    private double calcN(){double n1=getS(comboS1);double n2=chkS2.isSelected()?getS(comboS2):1;return n1*n2;}
+    private double getS(JComboBox<String> cb){int i=cb.getSelectedIndex();return(i>=0&&i<SPLIT_V.length)?SPLIT_V[i]:16;}
 
-    private void exibirResultado(ResultadoCalculo r) {
-        String nome = nomeCampo(r.getVariavel());
-        String uni = unidade(r.getVariavel());
-        String vf = "N".equals(r.getVariavel()) ? formatarN(r.getValor()) : String.format("%.2f %s", r.getValor(), uni);
-        areaResultado.setText("✓ " + nome + " = " + vf);
-
-        if (r.temAlertas()) {
-            boolean soOk = r.getAlertas().size() == 1 && r.getAlertas().get(0).contains("Todos os parametros dentro");
-            areaResultado.setBackground(soOk ? (altoContraste ? RESULT_OK_DARK : RESULT_OK) : (altoContraste ? RESULT_WARN_DARK : RESULT_WARN));
+    private void exibir(ResultadoCalculo r){
+        String nm=nome(r.getVariavel()),un=unid(r.getVariavel());
+        String vf="N".equals(r.getVariavel())?fmtN(r.getValor()):String.format("%.2f %s",r.getValor(),un);
+        areaResultado.setText("✓ "+nm+" = "+vf);
+        areaResultado.setBackground(altoContraste?new Color(40,100,40):new Color(200,250,200));
+        if(r.temAlertas()){
+            boolean soOk=r.getAlertas().size()==1&&r.getAlertas().get(0).contains("Todos os parametros dentro");
+            if(!soOk)areaResultado.setBackground(altoContraste?new Color(100,100,40):new Color(255,255,180));
             mostrarAlertas(r.getAlertas());
-        } else {
-            areaAlertas.setText("Nenhum alerta — parametros dentro dos padroes ITU-T.");
-            areaAlertas.setBackground(altoContraste ? RESULT_OK_DARK : RESULT_OK);
-        }
+        }else{areaAlertas.setText("Nenhum alerta — parametros dentro dos padroes ITU-T.");}
     }
+    private void err(String m){areaAlertas.setText("⚠ "+m);areaAlertas.setBackground(altoContraste?new Color(80,30,30):new Color(255,230,230));}
+    private void mostrarAlertas(List<String> a){StringBuilder sb=new StringBuilder();for(String s:a)sb.append("⚠ ").append(s).append("\n");areaAlertas.setText(sb.toString().trim());}
+    private String fmtN(double n){for(double v:new double[]{2,4,8,16,32,64,128,256})if(Math.abs(n-v)<0.05*v)return"1:"+(int)v;return"~1:"+Math.round(n);}
+    private String nome(String c){return switch(c){case"Ptx"->"Potencia Tx";case"S"->"Sensibilidade";case"alpha"->"Atenuacao";case"d"->"Distancia";case"N"->"Splitter";case"Pcon"->"Conectores";case"M"->"Margem";default->c;};}
+    private String unid(String c){return switch(c){case"Ptx","S"->"dBm";case"alpha"->"dB/km";case"d"->"km";case"Pcon","M"->"dB";default->"";};}
+    private int parseInt(String s){if(s==null||s.trim().isEmpty())return 0;try{return Integer.parseInt(s.trim());}catch(NumberFormatException e){return 0;}}
+    private double parseDouble(String s,double d){if(s==null||s.trim().isEmpty())return d;try{return Double.parseDouble(s.trim());}catch(NumberFormatException e){return d;}}
 
-    private void mostrarErro(String msg) { areaAlertas.setBackground(altoContraste ? new Color(80,30,30) : new Color(255,230,230)); areaAlertas.setText("⚠ " + msg); }
-    private void mostrarAlertas(List<String> alertas) {
-        areaAlertas.setBackground(altoContraste ? ALERT_BG_DARK : ALERT_BG);
-        StringBuilder sb = new StringBuilder();
-        for (String a : alertas) sb.append("⚠ ").append(a).append("\n");
-        areaAlertas.setText(sb.toString().trim());
-    }
-
-    private String formatarN(double n) {
-        for (double v : new double[]{2,4,8,16,32,64,128,256})
-            if (Math.abs(n-v) < 0.05*v) return "1:"+(int)v;
-        return "~1:"+Math.round(n);
-    }
-
-    private String nomeCampo(String chave) { return switch(chave) {
-        case "Ptx"->"Potencia de Transmissao"; case "S"->"Sensibilidade do Receptor";
-        case "alpha"->"Atenuacao da Fibra"; case "d"->"Distancia";
-        case "N"->"Divisao do Splitter"; case "Pcon"->"Perda por Conectores";
-        case "M"->"Margem de Seguranca"; default->chave; }; }
-    private String unidade(String chave) { return switch(chave) {
-        case "Ptx","S"->"dBm"; case "alpha"->"dB/km"; case "d"->"km";
-        case "Pcon","M"->"dB"; default->""; }; }
-
-    private int parseInt(String s) { if (s==null||s.trim().isEmpty()) return 0; try {return Integer.parseInt(s.trim());} catch(NumberFormatException e){return 0;} }
-    private double parseDouble(String s, double def) { if (s==null||s.trim().isEmpty()) return def; try {return Double.parseDouble(s.trim());} catch(NumberFormatException e){return def;} }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Filtros
-    // ═══════════════════════════════════════════════════════════════
+    // ═══════════════ FILTROS ═══════════════
 
     private static class FiltroNumerico extends DocumentFilter {
-        public void insertString(FilterBypass fb, int off, String s, AttributeSet a) throws BadLocationException { if (s!=null&&ok(fb,off,s,0)) super.insertString(fb,off,s,a); }
-        public void replace(FilterBypass fb, int off, int len, String s, AttributeSet a) throws BadLocationException { if (s!=null&&ok(fb,off,s,len)) super.replace(fb,off,len,s,a); }
-        public void remove(FilterBypass fb, int off, int len) throws BadLocationException { super.remove(fb,off,len); }
-        private boolean ok(FilterBypass fb, int off, String s, int len) throws BadLocationException {
-            String cur = fb.getDocument().getText(0, fb.getDocument().getLength());
-            String nxt = cur.substring(0,off)+s+cur.substring(off+len);
-            if (nxt.isEmpty()||nxt.equals("-")) return true;
-            String ss = nxt.startsWith("-")?nxt.substring(1):nxt;
-            return ss.matches("[0-9]*\\.?[0-9]*(?:[eE]-?[0-9]*)?");
+        public void insertString(FilterBypass fb,int o,String s,AttributeSet a)throws BadLocationException{if(s!=null&&ok(fb,o,s,0))super.insertString(fb,o,s,a);}
+        public void replace(FilterBypass fb,int o,int l,String s,AttributeSet a)throws BadLocationException{if(s!=null&&ok(fb,o,s,l))super.replace(fb,o,l,s,a);}
+        public void remove(FilterBypass fb,int o,int l)throws BadLocationException{super.remove(fb,o,l);}
+        private boolean ok(FilterBypass fb,int o,String s,int l)throws BadLocationException{
+            String c=fb.getDocument().getText(0,fb.getDocument().getLength());
+            String n=c.substring(0,o)+s+c.substring(o+l);
+            if(n.isEmpty()||n.equals("-"))return true;
+            String ns=n.startsWith("-")?n.substring(1):n;
+            return ns.matches("[0-9]*\\.?[0-9]*(?:[eE]-?[0-9]*)?");
         }
     }
-
     private static class FiltroInteiro extends DocumentFilter {
-        public void insertString(FilterBypass fb, int off, String s, AttributeSet a) throws BadLocationException { if (s!=null&&ok(fb,off,s,0)) super.insertString(fb,off,s,a); }
-        public void replace(FilterBypass fb, int off, int len, String s, AttributeSet a) throws BadLocationException { if (s!=null&&ok(fb,off,s,len)) super.replace(fb,off,len,s,a); }
-        public void remove(FilterBypass fb, int off, int len) throws BadLocationException { super.remove(fb,off,len); }
-        private boolean ok(FilterBypass fb, int off, String s, int len) throws BadLocationException {
-            String cur = fb.getDocument().getText(0, fb.getDocument().getLength());
-            String nxt = cur.substring(0,off)+s+cur.substring(off+len);
-            return nxt.isEmpty()||nxt.matches("[0-9]+");
+        public void insertString(FilterBypass fb,int o,String s,AttributeSet a)throws BadLocationException{if(s!=null&&ok(fb,o,s,0))super.insertString(fb,o,s,a);}
+        public void replace(FilterBypass fb,int o,int l,String s,AttributeSet a)throws BadLocationException{if(s!=null&&ok(fb,o,s,l))super.replace(fb,o,l,s,a);}
+        public void remove(FilterBypass fb,int o,int l)throws BadLocationException{super.remove(fb,o,l);}
+        private boolean ok(FilterBypass fb,int o,String s,int l)throws BadLocationException{
+            String c=fb.getDocument().getText(0,fb.getDocument().getLength());
+            return (c.substring(0,o)+s+c.substring(o+l)).matches("[0-9]*");
         }
     }
-
-    private static class DocListener implements javax.swing.event.DocumentListener {
-        private final Runnable fn;
-        DocListener(Runnable fn) { this.fn = fn; }
-        public void insertUpdate(javax.swing.event.DocumentEvent e) { fn.run(); }
-        public void removeUpdate(javax.swing.event.DocumentEvent e) { fn.run(); }
-        public void changedUpdate(javax.swing.event.DocumentEvent e) { fn.run(); }
+    private record DocListener(Runnable fn) implements javax.swing.event.DocumentListener {
+        public void insertUpdate(javax.swing.event.DocumentEvent e){fn.run();}
+        public void removeUpdate(javax.swing.event.DocumentEvent e){fn.run();}
+        public void changedUpdate(javax.swing.event.DocumentEvent e){fn.run();}
     }
 
-    // ═══════════════════════════════════════════════════════════════
-
-    public void iniciar() { SwingUtilities.invokeLater(() -> setVisible(true)); }
-
-    public static void main(String[] args) {
-        try { for (UIManager.LookAndFeelInfo i : UIManager.getInstalledLookAndFeels())
-                if ("Nimbus".equals(i.getName())) { UIManager.setLookAndFeel(i.getClassName()); break; } }
-        catch (Exception e) { try { UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName()); } catch (Exception ex) {} }
-        // Forca fonte base maior no Nimbus
-        for (var entry : UIManager.getDefaults().entrySet())
-            if (entry.getKey().toString().contains("font")) UIManager.put(entry.getKey(), new Font("Segoe UI", Font.PLAIN, 14));
+    public void iniciar(){SwingUtilities.invokeLater(()->setVisible(true));}
+    public static void main(String[] args){
+        try{for(UIManager.LookAndFeelInfo i:UIManager.getInstalledLookAndFeels())if("Nimbus".equals(i.getName())){UIManager.setLookAndFeel(i.getClassName());break;}}
+        catch(Exception e){try{UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());}catch(Exception ex){}}
         new CalculadoraGUI().iniciar();
     }
 }
