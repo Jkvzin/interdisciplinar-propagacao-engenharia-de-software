@@ -340,6 +340,11 @@ public class CalculadoraGUI extends JFrame {
 
         getContentPane().setBackground(bg);
         revalidate(); repaint();
+
+        // Redimensiona janela proporcional a fonte
+        int[] larguras = {700, 880, 1060};
+        int[] alturas  = {720, 820, 950};
+        setSize(larguras[nivelFonte], alturas[nivelFonte]);
     }
 
     // ═══════════ HELPERS ═══════════
