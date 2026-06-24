@@ -54,14 +54,14 @@ O sistema nao deve travar com entradas invalidas. Erros devem ser exibidos de fo
 ### Equacao Fundamental
 
 ```
-Ptx - S = α × d + 10·log₂(N) + Pcon + M
+Ptx - S = α × d + 10·log₁₀(N) + Pcon + M
 ```
 
 | Simbolo | Descricao | Unidade | Valores Tipicos |
 |---------|-----------|---------|-----------------|
 | Ptx | Potencia de transmissao da OLT | dBm | +1.5 a +5 |
 | S | Sensibilidade do receptor (ONU) | dBm | -28 (Classe B+), -27 (Classe C+) |
-| α | Atenuacao da fibra G.652 | dB/km | 0.35 (1490 nm DS), 0.40 (1310 nm US) |
+| α | Atenuacao da fibra G.652 | dB/km | 0.28 (1490 nm DS), 0.35 (1310 nm US) |
 | d | Distancia do enlace | km | max 20 (tipico), max 60 (Classe C+) |
 | N | Razao de divisao do splitter | — | 2, 4, 8, 16, 32, 64 |
 | Pcon | Perda por conectores e fusoes | dB | ~0.5 por conector, ~0.1 por fusao |
@@ -89,44 +89,89 @@ Ptx - S = α × d + 10·log₂(N) + Pcon + M
 
 ---
 
-## 5. Diagrama de Classes (Especificacao)
+## 5. Diagrama de Classes (Codigo Final)
 
 ```
-┌─────────────────────┐     ┌──────────────────────┐
-│    Equipamento       │     │      Validador        │
-├─────────────────────┤     ├──────────────────────┤
-│ - potenciaTx: double │     │ + validarPotenciaTx() │
-│ - sensibilidade: double│   │ + validarSensibilidade()│
-│ - perdaInsercao: double│   │ + validarDistancia()  │
-│ - atenuacaoFibra: double│  │ + validarAtenuacao()  │
-│ - margem: double     │     │ - LIMITES: constantes │
-└─────────┬───────────┘     └──────────┬───────────┘
-          │                            │
-          └──────────┬─────────────────┘
-                     │
-          ┌──────────┴───────────┐
-          │     LinkBudget        │
-          ├──────────────────────┤
-          │ + calcular(Map)       │
-          │ - calcularPtx()       │
-          │ - calcularS()         │
-          │ - calcularDistancia() │
-          │ - calcularSplitter()  │
-          │ - calcularConectores()│
-          │ - calcularMargem()    │
-          └──────────┬───────────┘
-                     │
-          ┌──────────┴───────────┐
-          │     Controlador       │
-          ├──────────────────────┤
-          │ + processarCalculo()  │
-          │ + getAlertas()        │
-          └──────────┬───────────┘
-                     │
-          ┌──────────┴───────────┐
-          │   CalculadoraGUI      │
-          │   (Java Swing)        │
-          └──────────────────────┘
+┌─────────────────────────┐     ┌──────────────────────────┐
+│      Equipamento         │     │       Validador           │
+│      (Model)             │     │       (Model)             │
+├─────────────────────────┤     ├──────────────────────────┤
+│ - potenciaTx: double     │     │ + validarPotenciaTx()     │
+│ - sensibilidade: double  │     │ + validarSensibilidade()  │
+│ - perdaInsercao: double  │     │ + validarDistancia()      │
+│ - atenuacao1490: double  │     │ + validarAtenuacao()      │
+│ - atenuacao1310: double  │     │ + validarSplitter()       │
+│ - perdaPorConector: double│    │ + validarPerdaConectores()│
+│ - perdaPorFusao: double  │     │ + validarMargem()         │
+│ - margem: double         │     │ - LIMITEs: constantes     │
+│ + get/set p/ cada campo  │     └──────────┬───────────────┘
+│ + getAtenuacaoFibra(nm)  │                │
+└─────────┬────────────────┘                │
+          │                                 │
+          └──────────────┬──────────────────┘
+                         │
+              ┌──────────┴───────────┐
+              │     LinkBudget        │
+              │     (Model)           │
+              ├──────────────────────┤
+              │ + calcular(Map)       │
+              │ - perdaSplitter(N)    │
+              │ - calcularPotenciaTx()│
+              │ - calcularSensibilidade()│
+              │ - calcularAtenuacao() │
+              │ - calcularDistancia() │
+              │ - calcularDivisaoSplitter()│
+              │ - calcularPerdaConectores()│
+              │ - calcularMargem()    │
+              └──────────┬───────────┘
+                         │
+              ┌──────────┴───────────┐
+              │     Controlador       │
+              │     (Controller)      │
+              ├──────────────────────┤
+              │ - linkBudget          │
+              │ - validador           │
+              │ + processarCalculo()  │
+              │ - validarEntradas()   │
+              │ - validarResultado()  │
+              │ - validarAtenuacaoTotal()│
+              └──────────┬───────────┘
+                         │
+              ┌──────────┴───────────┐
+              │  ResultadoCalculo     │
+              │  (Controller / DTO)   │
+              ├──────────────────────┤
+              │ - valor: double       │
+              │ - variavel: String    │
+              │ - alertas: List<String>│
+              │ + getValor()          │
+              │ + getVariavel()       │
+              │ + getAlertas()        │
+              │ + temAlertas()        │
+              └──────────────────────┘
+
+┌─────────────────────────┐
+│    CalculadoraGUI        │
+│    (View / Swing)        │
+├─────────────────────────┤
+│ - controlador            │
+│ - campos: 7 JTextField   │
+│ - cmbWavelength          │
+│ - cmbSplitter1           │
+│ - cmbSplitter2 (cascata) │
+│ - spnConectores          │
+│ - spnFusoes              │
+│ - lblResultado           │
+│ - areaAlertas            │
+│ - btnCalcular            │
+│ - btnA11y (A−/A+)        │
+│ - btnAltoContraste       │
+│ + iniciar()              │
+│ - onCalcular()           │
+│ - exibirResultado()      │
+│ - exibirAlertas()        │
+│ - aplicarAcessibilidade()│
+└─────────────────────────┘
 ```
 
 ---
@@ -144,11 +189,11 @@ Ptx - S = α × d + 10·log₂(N) + Pcon + M
 ## 7. Entregaveis Obrigatorios
 
 - [x] Documento de Requisitos (este PRD)
-- [ ] Diagrama de Caso de Uso (UML)
-- [ ] Diagrama de Classes atualizado (refletindo codigo final)
-- [ ] Projeto Java com interface grafica (Swing)
-- [ ] Testes unitarios JUnit 5
-- [ ] README.md com instrucoes de execucao
+- [x] Diagrama de Caso de Uso (UML)
+- [x] Diagrama de Classes atualizado (refletindo codigo final)
+- [x] Projeto Java com interface grafica (Swing)
+- [x] Testes unitarios JUnit 5 (40 testes)
+- [x] README.md com instrucoes de execucao
 
 ---
 
